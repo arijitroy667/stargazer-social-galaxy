@@ -44,10 +44,32 @@ const Index = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('socials');
+  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
+
+  const handleLike = (postId: number) => {
+    const newLikedPosts = new Set(likedPosts);
+    if (newLikedPosts.has(postId)) {
+      newLikedPosts.delete(postId);
+    } else {
+      newLikedPosts.add(postId);
+    }
+    setLikedPosts(newLikedPosts);
+  };
+
+  const handleFollow = (userId: number) => {
+    const newFollowedUsers = new Set(followedUsers);
+    if (newFollowedUsers.has(userId)) {
+      newFollowedUsers.delete(userId);
+    } else {
+      newFollowedUsers.add(userId);
+    }
+    setFollowedUsers(newFollowedUsers);
+  };
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock authentication
+    // Mock authentication with animation
     setUser({ name: 'StarGazer User', username: '@staruser' });
     setCurrentView('dashboard');
   };
@@ -62,12 +84,12 @@ const Index = () => {
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
           <ConstellationBackground />
           
-          {/* Glassmorphic Navigation */}
-          <nav className="fixed top-0 w-full z-50 backdrop-blur-lg bg-white/10 border-b border-white/20">
+          {/* Premium Glassmorphic Navigation */}
+          <nav className="fixed top-0 w-full z-50 glass-panel backdrop-blur-xl bg-white/10 border-b border-white/20">
             <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Star className="w-8 h-8 text-yellow-400" />
-                <span className="text-2xl font-bold text-white">StarGazer</span>
+              <div className="flex items-center space-x-2 animate-spring-up">
+                <Star className="w-8 h-8 text-yellow-400 animate-twinkle" />
+                <span className="text-2xl font-bold text-white shimmer-text">StarGazer</span>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -75,13 +97,13 @@ const Index = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className="text-white hover:bg-white/20"
+                  className="glass-button text-white hover:bg-white/20 transition-all duration-300"
                 >
                   {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </Button>
                 <Button
                   onClick={() => setCurrentView('auth')}
-                  className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30"
+                  className="premium-button glass-panel bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 transition-all duration-300 hover-lift"
                 >
                   Join StarGazer
                 </Button>
@@ -89,23 +111,26 @@ const Index = () => {
             </div>
           </nav>
 
-          {/* Hero Section */}
+          {/* Hero Section with Kinetic Typography */}
           <div className="flex items-center justify-center min-h-screen px-6">
             <div className="text-center max-w-4xl">
-              <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 animate-fade-in">
-                Connect Among the Stars
+              <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 animate-kinetic-text">
+                <span className="inline-block shimmer-text">Connect</span>{' '}
+                <span className="inline-block shimmer-text" style={{ animationDelay: '0.2s' }}>Among</span>{' '}
+                <span className="inline-block shimmer-text" style={{ animationDelay: '0.4s' }}>the</span>{' '}
+                <span className="inline-block shimmer-text text-yellow-400" style={{ animationDelay: '0.6s' }}>Stars</span>
               </h1>
-              <p className="text-xl md:text-2xl text-purple-200 mb-8 animate-fade-in">
+              <p className="text-xl md:text-2xl text-purple-200 mb-8 animate-spring-up" style={{ animationDelay: '0.8s' }}>
                 A cosmic social experience where your thoughts shine as bright as constellations
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center" style={{ animationDelay: '1s' }}>
                 <Button
                   size="lg"
                   onClick={() => setCurrentView('auth')}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg backdrop-blur-sm"
+                  className="premium-button glass-panel bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg backdrop-blur-sm hover-lift animate-spring-up"
                 >
-                  <Star className="w-5 h-5 mr-2" />
+                  <Star className="w-5 h-5 mr-2 animate-twinkle" />
                   Join the Galaxy
                 </Button>
                 <Button
@@ -115,7 +140,8 @@ const Index = () => {
                     setAuthMode('login');
                     setCurrentView('auth');
                   }}
-                  className="border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm"
+                  className="glass-button border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm animate-spring-up"
+                  style={{ animationDelay: '1.1s' }}
                 >
                   Sign In
                 </Button>
@@ -402,9 +428,14 @@ const Index = () => {
                       </div>
                       <Button 
                         size="sm" 
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                        onClick={() => handleFollow(i)}
+                        className={`w-full transition-all duration-300 hover-lift ${
+                          followedUsers.has(i) 
+                            ? 'bg-green-500 hover:bg-green-600 text-white' 
+                            : 'premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                        }`}
                       >
-                        Follow
+                        {followedUsers.has(i) ? '✓ Following' : 'Follow'}
                       </Button>
                     </GlassmorphicCard>
                   ))}
@@ -469,9 +500,18 @@ const Index = () => {
                             Just witnessed the most beautiful constellation tonight. The universe never fails to amaze me! ✨🌟
                           </p>
                           <div className="flex items-center space-x-6">
-                            <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
-                              <Heart className="w-4 h-4 mr-1" />
-                              {Math.floor(Math.random() * 50)}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleLike(i)}
+                              className={`transition-all duration-300 ${
+                                likedPosts.has(i) 
+                                  ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
+                                  : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
+                              }`}
+                            >
+                              <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i) ? 'fill-current animate-heart-pulse' : ''}`} />
+                              {Math.floor(Math.random() * 50) + (likedPosts.has(i) ? 1 : 0)}
                             </Button>
                             <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
                               <MessageCircle className="w-4 h-4 mr-1" />

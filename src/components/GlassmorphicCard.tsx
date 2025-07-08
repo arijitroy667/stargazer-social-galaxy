@@ -14,9 +14,12 @@ export const GlassmorphicCard: React.FC<GlassmorphicCardProps> = ({
   return (
     <div
       className={cn(
-        'backdrop-blur-lg bg-white/10 border border-white/20 rounded-xl shadow-2xl',
-        'hover:bg-white/20 transition-all duration-300',
-        'dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10',
+        'glass-panel transition-all duration-300 hover-lift animate-spring-up',
+        'backdrop-blur-xl',
+        'dark:bg-white/8 dark:border-white/18',
+        'light:bg-black/5 light:border-black/20',
+        'hover:bg-white/15 dark:hover:bg-white/12',
+        'shadow-lg hover:shadow-xl',
         className
       )}
     >
