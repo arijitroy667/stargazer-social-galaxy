@@ -10,6 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
 import { 
   Star, 
   Moon, 
@@ -26,7 +28,11 @@ import {
   Upload,
   Plus,
   Edit3,
-  X
+  X,
+  Shield,
+  Palette,
+  Volume2,
+  Lock
 } from 'lucide-react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ConstellationBackground } from '@/components/ConstellationBackground';
@@ -37,6 +43,7 @@ const Index = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('socials');
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,11 +239,11 @@ const Index = () => {
           ? 'bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950' 
           : 'bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'
       }`}>
-        {/* Header */}
-        <header className={`sticky top-0 z-50 backdrop-blur-lg border-b transition-all duration-500 ${
+        {/* Premium Glassmorphic Header */}
+        <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-all duration-500 ${
           isDarkMode 
-            ? 'bg-black/20 border-white/10' 
-            : 'bg-white/30 border-black/10'
+            ? 'bg-gradient-to-r from-black/30 via-purple-900/20 to-black/30 border-white/10 shadow-lg shadow-purple-500/10' 
+            : 'bg-gradient-to-r from-white/40 via-blue-100/30 to-white/40 border-black/10 shadow-lg shadow-blue-500/10'
         }`}>
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
@@ -256,8 +263,8 @@ const Index = () => {
                     placeholder="Search the galaxy..."
                     className={`pl-10 w-80 transition-all duration-300 ${
                       isDarkMode 
-                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm' 
+                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60 backdrop-blur-sm'
                     }`}
                   />
                 </div>
@@ -267,21 +274,14 @@ const Index = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'}
-                >
-                  <Home className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'}
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
                   <Bell className="w-5 h-5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'}
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Button>
@@ -290,16 +290,49 @@ const Index = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className={isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'}
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
                   {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
 
-                <Avatar>
-                  <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                    SU
-                  </AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8 ring-2 ring-purple-500/50">
+                        <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">
+                          SU
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    className={`w-56 ${
+                      isDarkMode 
+                        ? 'bg-black/80 border-white/20 text-white backdrop-blur-lg' 
+                        : 'bg-white/80 border-black/20 text-black backdrop-blur-lg'
+                    }`} 
+                    align="end" 
+                    forceMount
+                  >
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => setActiveTab('profile')}
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2 cursor-pointer text-red-500 hover:text-red-600"
+                      onClick={() => {
+                        setUser(null);
+                        setCurrentView('landing');
+                      }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -307,9 +340,9 @@ const Index = () => {
 
         {/* Main Content */}
         <div className="container mx-auto px-6 py-8">
-          <Tabs defaultValue="socials" className="space-y-8">
-            <TabsList className={`grid w-full grid-cols-2 ${
-              isDarkMode ? 'bg-white/10' : 'bg-black/5'
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className={`grid w-full grid-cols-4 ${
+              isDarkMode ? 'bg-white/10 backdrop-blur-sm' : 'bg-black/5 backdrop-blur-sm'
             }`}>
               <TabsTrigger value="socials" className={`${
                 isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
@@ -319,7 +352,17 @@ const Index = () => {
               <TabsTrigger value="dashboard" className={`${
                 isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
               }`}>
-                My Dashboard
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="profile" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
+                Profile
+              </TabsTrigger>
+              <TabsTrigger value="settings" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
+                Settings
               </TabsTrigger>
             </TabsList>
 
@@ -657,6 +700,251 @@ const Index = () => {
                   </div>
                 </TabsContent>
               </Tabs>
+            </TabsContent>
+
+            <TabsContent value="profile" className="space-y-8">
+              {/* Profile Header */}
+              <GlassmorphicCard className="relative overflow-hidden">
+                <div className="h-48 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600"></div>
+                <div className="p-6">
+                  <div className="flex items-end space-x-6 -mt-16">
+                    <Avatar className="w-24 h-24 border-4 border-white">
+                      <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-2xl">
+                        SU
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="pb-2">
+                      <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        StarGazer User
+                      </h1>
+                      <p className={`${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>@staruser</p>
+                      <div className="flex space-x-6 mt-2">
+                        <span className={`text-sm ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
+                          <strong>128</strong> Following
+                        </span>
+                        <span className={`text-sm ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
+                          <strong>1.2K</strong> Followers
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </GlassmorphicCard>
+
+              {/* Profile Edit Section */}
+              <GlassmorphicCard className="p-6">
+                <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Edit Profile
+                </h2>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Full Name</Label>
+                      <Input
+                        defaultValue="StarGazer User"
+                        className={`${
+                          isDarkMode 
+                            ? 'bg-white/10 border-white/20 text-white' 
+                            : 'bg-black/5 border-black/20 text-black'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Email</Label>
+                      <Input
+                        defaultValue="staruser@cosmic.com"
+                        type="email"
+                        className={`${
+                          isDarkMode 
+                            ? 'bg-white/10 border-white/20 text-white' 
+                            : 'bg-black/5 border-black/20 text-black'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Bio</Label>
+                    <Textarea
+                      placeholder="Tell the galaxy about yourself..."
+                      defaultValue="Exploring the cosmos one star at a time ✨"
+                      className={`${
+                        isDarkMode 
+                          ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                          : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      Change Password
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Current Password</Label>
+                        <Input
+                          type="password"
+                          placeholder="Enter current password"
+                          className={`${
+                            isDarkMode 
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>New Password</Label>
+                        <Input
+                          type="password"
+                          placeholder="Enter new password"
+                          className={`${
+                            isDarkMode 
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Confirm New Password</Label>
+                        <Input
+                          type="password"
+                          placeholder="Confirm new password"
+                          className={`${
+                            isDarkMode 
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-4">
+                    <Button variant="outline">Cancel</Button>
+                    <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              </GlassmorphicCard>
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-8">
+              <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                Settings
+              </h2>
+
+              {/* General Settings */}
+              <GlassmorphicCard className="p-6">
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <Settings className="w-5 h-5 inline mr-2" />
+                  General
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Dark Mode</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Switch between light and dark themes
+                      </p>
+                    </div>
+                    <Switch checked={isDarkMode} onCheckedChange={toggleTheme} />
+                  </div>
+                </div>
+              </GlassmorphicCard>
+
+              {/* Privacy Settings */}
+              <GlassmorphicCard className="p-6">
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <Shield className="w-5 h-5 inline mr-2" />
+                  Privacy & Security
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Private Account</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Only followers can see your posts
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Show Online Status</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Let others see when you're online
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Two-Factor Authentication</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Add an extra layer of security to your account
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Setup
+                    </Button>
+                  </div>
+                </div>
+              </GlassmorphicCard>
+
+              {/* Notification Settings */}
+              <GlassmorphicCard className="p-6">
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <Bell className="w-5 h-5 inline mr-2" />
+                  Notifications
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Push Notifications</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Receive notifications on your device
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Email Notifications</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Get updates via email
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Sound Effects</Label>
+                      <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                        Play sounds for notifications
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </GlassmorphicCard>
+
+              {/* Account Actions */}
+              <GlassmorphicCard className="p-6">
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  Account Actions
+                </h3>
+                <div className="space-y-4">
+                  <Button variant="outline" className="w-full justify-start">
+                    Export Data
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start text-red-500 hover:text-red-600">
+                    Delete Account
+                  </Button>
+                </div>
+              </GlassmorphicCard>
             </TabsContent>
           </Tabs>
         </div>
