@@ -1,68 +1,213 @@
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const ConstellationBackground: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const setCanvasSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    setCanvasSize();
+    window.addEventListener('resize', setCanvasSize);
+
+    // Enhanced stars array with parallax layers
+    const backgroundStars: Array<{
+      x: number;
+      y: number;
+      size: number;
+      opacity: number;
+      speed: number;
+      angle: number;
+      layer: number;
+      twinkleOffset: number;
+    }> = [];
+
+    const foregroundStars: Array<{
+      x: number;
+      y: number;
+      size: number;
+      opacity: number;
+      speed: number;
+      angle: number;
+      glowIntensity: number;
+      twinkleOffset: number;
+    }> = [];
+
+    // Create background stars (parallax layer)
+    for (let i = 0; i < 80; i++) {
+      backgroundStars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 1 + 0.5,
+        opacity: Math.random() * 0.4 + 0.1,
+        speed: Math.random() * 0.2 + 0.05,
+        angle: Math.random() * Math.PI * 2,
+        layer: 0.3,
+        twinkleOffset: Math.random() * Math.PI * 2,
+      });
+    }
+
+    // Create foreground stars (main layer)
+    for (let i = 0; i < 70; i++) {
+      foregroundStars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2.5 + 1,
+        opacity: Math.random() * 0.6 + 0.4,
+        speed: Math.random() * 0.4 + 0.1,
+        angle: Math.random() * Math.PI * 2,
+        glowIntensity: Math.random() * 20 + 10,
+        twinkleOffset: Math.random() * Math.PI * 2,
+      });
+    }
+
+    // Mouse parallax effect
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    // Animation loop
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const time = Date.now() * 0.001;
+
+      // Draw background stars with parallax
+      backgroundStars.forEach((star, index) => {
+        // Apply parallax effect
+        const parallaxX = star.x + mousePosition.x * 10 * star.layer;
+        const parallaxY = star.y + mousePosition.y * 10 * star.layer;
+
+        // Update position
+        star.x += Math.cos(star.angle) * star.speed;
+        star.y += Math.sin(star.angle) * star.speed;
+
+        // Wrap around screen
+        if (star.x < 0) star.x = canvas.width;
+        if (star.x > canvas.width) star.x = 0;
+        if (star.y < 0) star.y = canvas.height;
+        if (star.y > canvas.height) star.y = 0;
+
+        // Enhanced twinkling
+        const twinkle = Math.sin(time * 2 + star.twinkleOffset) * 0.3 + 0.7;
+        star.opacity = twinkle * 0.4;
+
+        // Draw star
+        ctx.save();
+        ctx.globalAlpha = star.opacity;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(parallaxX, parallaxY, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw foreground stars with enhanced effects
+      foregroundStars.forEach((star, index) => {
+        // Apply stronger parallax effect
+        const parallaxX = star.x + mousePosition.x * 25;
+        const parallaxY = star.y + mousePosition.y * 25;
+
+        // Update position
+        star.x += Math.cos(star.angle) * star.speed;
+        star.y += Math.sin(star.angle) * star.speed;
+
+        // Wrap around screen
+        if (star.x < 0) star.x = canvas.width;
+        if (star.x > canvas.width) star.x = 0;
+        if (star.y < 0) star.y = canvas.height;
+        if (star.y > canvas.height) star.y = 0;
+
+        // Enhanced twinkling with color shifts
+        const twinkle = Math.sin(time * 1.5 + star.twinkleOffset) * 0.4 + 0.6;
+        star.opacity = twinkle;
+
+        // Color variation for different star types
+        const starColors = ['#ffffff', '#ffd700', '#87ceeb', '#ff69b4'];
+        const colorIndex = index % starColors.length;
+
+        // Draw star with glow
+        ctx.save();
+        ctx.globalAlpha = star.opacity;
+        ctx.fillStyle = starColors[colorIndex];
+        ctx.shadowBlur = star.glowIntensity * twinkle;
+        ctx.shadowColor = starColors[colorIndex];
+        ctx.beginPath();
+        ctx.arc(parallaxX, parallaxY, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Draw connections between nearby stars with enhanced visuals
+        foregroundStars.forEach((otherStar, otherIndex) => {
+          if (index !== otherIndex && Math.abs(index - otherIndex) < 10) {
+            const otherParallaxX = otherStar.x + mousePosition.x * 25;
+            const otherParallaxY = otherStar.y + mousePosition.y * 25;
+            
+            const distance = Math.sqrt(
+              Math.pow(parallaxX - otherParallaxX, 2) + 
+              Math.pow(parallaxY - otherParallaxY, 2)
+            );
+
+            if (distance < 120) {
+              ctx.save();
+              const alpha = (120 - distance) / 120 * 0.15 * twinkle;
+              ctx.globalAlpha = alpha;
+              
+              // Gradient line
+              const gradient = ctx.createLinearGradient(
+                parallaxX, parallaxY, 
+                otherParallaxX, otherParallaxY
+              );
+              gradient.addColorStop(0, starColors[colorIndex]);
+              gradient.addColorStop(1, starColors[otherIndex % starColors.length]);
+              
+              ctx.strokeStyle = gradient;
+              ctx.lineWidth = 0.8;
+              ctx.shadowBlur = 5;
+              ctx.shadowColor = '#ffffff';
+              ctx.beginPath();
+              ctx.moveTo(parallaxX, parallaxY);
+              ctx.lineTo(otherParallaxX, otherParallaxY);
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+        });
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', setCanvasSize);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [mousePosition]);
+
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Fluid wave background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background/80">
-        {/* Organic gradient blobs */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-primary/20 to-accent/10 rounded-full blur-3xl animate-float opacity-40" 
-             style={{ animationDuration: '8s' }} />
-        <div className="absolute top-1/2 right-0 w-80 h-80 bg-gradient-to-bl from-accent/15 to-primary/5 rounded-full blur-3xl animate-float opacity-50" 
-             style={{ animationDuration: '12s', animationDelay: '2s' }} />
-        <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-gradient-to-tr from-primary/10 to-accent/20 rounded-full blur-3xl animate-float opacity-30" 
-             style={{ animationDuration: '10s', animationDelay: '4s' }} />
-        
-        {/* Subtle flowing particles */}
-        {Array.from({ length: 25 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-float opacity-20"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${6 + Math.random() * 4}s`,
-            }}
-          >
-            <div 
-              className="w-3 h-3 bg-gradient-to-r from-primary/40 to-accent/40 rounded-full blur-sm"
-              style={{
-                transform: `scale(${0.5 + Math.random() * 0.5})`,
-              }}
-            />
-          </div>
-        ))}
-      </div>
-      
-      {/* Flowing wave patterns */}
-      <svg
-        className="absolute inset-0 w-full h-full opacity-10"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
-            <stop offset="50%" stopColor="hsl(var(--accent))" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M0,20 Q25,10 50,20 T100,20 L100,100 L0,100 Z"
-          fill="url(#waveGradient)"
-          className="animate-pulse"
-          style={{ animationDuration: '4s' }}
-        />
-        <path
-          d="M0,40 Q25,30 50,40 T100,40 L100,100 L0,100 Z"
-          fill="url(#waveGradient)"
-          opacity="0.5"
-          className="animate-pulse"
-          style={{ animationDuration: '6s', animationDelay: '1s' }}
-        />
-      </svg>
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none z-0"
+      style={{ background: 'transparent' }}
+    />
   );
 };

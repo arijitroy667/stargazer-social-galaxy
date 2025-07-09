@@ -260,32 +260,38 @@ const Index = () => {
   // Dashboard View
   return (
     <ThemeProvider isDark={isDarkMode}>
-      <ConstellationBackground />
-      <div className={`min-h-screen transition-all duration-500`}>
+      <div className={`min-h-screen transition-all duration-500 ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950' 
+          : 'bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'
+      }`}>
         {/* Premium Glassmorphic Header */}
-        <header className="sticky top-0 z-50 m-4 mx-6">
-          <div className="backdrop-blur-xl bg-glass-bg-light dark:bg-glass-bg-dark border border-glass-border-light dark:border-glass-border-dark rounded-3xl shadow-2xl p-4"
-            style={{
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-            }}
-          >
+        <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-all duration-500 ${
+          isDarkMode 
+            ? 'bg-gradient-to-r from-black/30 via-purple-900/20 to-black/30 border-white/10 shadow-lg shadow-purple-500/10' 
+            : 'bg-gradient-to-r from-white/40 via-blue-100/30 to-white/40 border-black/10 shadow-lg shadow-blue-500/10'
+        }`}>
+          <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center shadow-lg">
-                    <Star className="w-5 h-5 text-white drop-shadow-sm" />
-                  </div>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-sm">
+                <div className="flex items-center space-x-2">
+                  <Star className={`w-8 h-8 ${isDarkMode ? 'text-yellow-400' : 'text-indigo-600'}`} />
+                  <span className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-indigo-900'}`}>
                     StarGazer
                   </span>
                 </div>
                 
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/60" />
+                  <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                    isDarkMode ? 'text-white/60' : 'text-black/60'
+                  }`} />
                   <Input
                     placeholder="Search the galaxy..."
-                    className="pl-10 w-80 backdrop-blur-sm bg-background/20 border-border/30 rounded-2xl focus:bg-background/30 transition-all duration-300"
+                    className={`pl-10 w-80 transition-all duration-300 ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm' 
+                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60 backdrop-blur-sm'
+                    }`}
                   />
                 </div>
               </div>
@@ -294,14 +300,14 @@ const Index = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-foreground/80 hover:text-primary hover:bg-primary/15 backdrop-blur-sm rounded-2xl transition-all duration-300"
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
                   <Bell className="w-5 h-5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-foreground/80 hover:text-primary hover:bg-primary/15 backdrop-blur-sm rounded-2xl transition-all duration-300"
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Button>
@@ -310,40 +316,39 @@ const Index = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className="p-3 rounded-2xl backdrop-blur-sm bg-background/20 hover:bg-background/30 transition-all duration-300 border border-border/30 shadow-md hover:shadow-lg"
+                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
                 >
-                  {isDarkMode ? (
-                    <Sun className="w-5 h-5 text-yellow-400 drop-shadow-sm" />
-                  ) : (
-                    <Moon className="w-5 h-5 text-blue-600 drop-shadow-sm" />
-                  )}
+                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-11 w-11 rounded-full">
-                      <Avatar className="h-11 w-11 ring-2 ring-primary/30 hover:ring-primary/50 transition-all duration-300">
-                        <AvatarFallback className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8 ring-2 ring-purple-500/50">
+                        <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">
                           SU
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent 
-                    className="w-56 backdrop-blur-xl bg-glass-bg-light dark:bg-glass-bg-dark border border-glass-border-light dark:border-glass-border-dark rounded-2xl shadow-2xl p-3"
+                    className={`w-56 ${
+                      isDarkMode 
+                        ? 'bg-black/80 border-white/20 text-white backdrop-blur-lg' 
+                        : 'bg-white/80 border-black/20 text-black backdrop-blur-lg'
+                    }`} 
                     align="end" 
                     forceMount
                   >
                     <DropdownMenuItem 
-                      className="flex items-center gap-2 cursor-pointer rounded-xl hover:bg-primary/15 transition-all duration-200 font-medium text-foreground/90 hover:text-primary"
+                      className="flex items-center gap-2 cursor-pointer"
                       onClick={() => setActiveTab('profile')}
                     >
                       <User className="w-4 h-4" />
                       Profile
                     </DropdownMenuItem>
-                    <hr className="my-2 border-border/30" />
                     <DropdownMenuItem 
-                      className="flex items-center gap-2 cursor-pointer rounded-xl hover:bg-destructive/15 text-destructive transition-all duration-200 font-medium"
+                      className="flex items-center gap-2 cursor-pointer text-red-500 hover:text-red-600"
                       onClick={() => {
                         setUser(null);
                         setCurrentView('landing');
@@ -362,17 +367,27 @@ const Index = () => {
         {/* Main Content */}
         <div className="container mx-auto px-6 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-            <TabsList className="grid w-full grid-cols-4 backdrop-blur-xl bg-glass-bg-light dark:bg-glass-bg-dark border border-glass-border-light dark:border-glass-border-dark rounded-3xl p-2 shadow-lg">
-              <TabsTrigger value="socials" className="data-[state=active]:bg-primary/25 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-lg text-foreground/80 hover:text-primary hover:bg-primary/15 rounded-2xl transition-all duration-300">
+            <TabsList className={`grid w-full grid-cols-4 ${
+              isDarkMode ? 'bg-white/10 backdrop-blur-sm' : 'bg-black/5 backdrop-blur-sm'
+            }`}>
+              <TabsTrigger value="socials" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
                 Socials
               </TabsTrigger>
-              <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary/25 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-lg text-foreground/80 hover:text-primary hover:bg-primary/15 rounded-2xl transition-all duration-300">
+              <TabsTrigger value="dashboard" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
                 Dashboard
               </TabsTrigger>
-              <TabsTrigger value="profile" className="data-[state=active]:bg-primary/25 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-lg text-foreground/80 hover:text-primary hover:bg-primary/15 rounded-2xl transition-all duration-300">
+              <TabsTrigger value="profile" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
                 Profile
               </TabsTrigger>
-              <TabsTrigger value="settings" className="data-[state=active]:bg-primary/25 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-lg text-foreground/80 hover:text-primary hover:bg-primary/15 rounded-2xl transition-all duration-300">
+              <TabsTrigger value="settings" className={`${
+                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+              }`}>
                 Settings
               </TabsTrigger>
             </TabsList>
