@@ -10,33 +10,33 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 160 100% 87%;
     --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%;
+    --card: 160 100% 92%;
     --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 0 0% 100%;
+    --popover: 160 100% 92%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 180 100% 50%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 160 100% 85%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 160 100% 90%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 180 100% 75%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 160 50% 85%;
+    --input: 160 50% 85%;
+    --ring: 180 100% 50%;
 
     --radius: 0.5rem;
 
@@ -50,8 +50,8 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Enhanced Glassmorphic Variables */
-    --glass-bg-light: rgba(255, 255, 255, 0.25);
-    --glass-border-light: rgba(255, 255, 255, 0.4);
+    --glass-bg-light: rgba(127, 255, 212, 0.15);
+    --glass-border-light: rgba(127, 255, 212, 0.3);
     --glass-shadow-light: 0 8px 32px rgba(0, 0, 0, 0.1);
     --glass-backdrop: blur(20px);
     
@@ -63,33 +63,33 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 240 63% 13%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 240 63% 15%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 240 63% 15%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 240 100% 50%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 240 63% 20%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 240 63% 18%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 240 80% 60%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 240 50% 25%;
+    --input: 240 50% 25%;
+    --ring: 240 100% 70%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -100,9 +100,9 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Dark Mode Glass */
-    --glass-bg-dark: rgba(255, 255, 255, 0.08);
-    --glass-border-dark: rgba(255, 255, 255, 0.18);
-    --glass-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.37);
+    --glass-bg-dark: rgba(25, 25, 112, 0.12);
+    --glass-border-dark: rgba(75, 0, 130, 0.25);
+    --glass-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 }
 
