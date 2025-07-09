@@ -85,25 +85,25 @@ const Index = () => {
           <ConstellationBackground />
           
           {/* Premium Glassmorphic Navigation */}
-          <nav className="fixed top-0 w-full z-50 glass-panel backdrop-blur-xl bg-white/10 border-b border-white/20">
-            <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-              <div className="flex items-center space-x-2 animate-spring-up">
+          <nav className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-gradient-to-r from-white/5 via-white/10 to-white/5 border-none shadow-lg shadow-black/5">
+            <div className="container mx-auto px-8 py-5 flex justify-between items-center">
+              <div className="flex items-center space-x-3 animate-spring-up">
                 <Star className="w-8 h-8 text-yellow-400 animate-twinkle" />
-                <span className="text-2xl font-bold text-white shimmer-text">StarGazer</span>
+                <span className="text-2xl font-bold text-white shimmer-text tracking-wide">StarGazer</span>
               </div>
               
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-6">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className="glass-button text-white hover:bg-white/20 transition-all duration-300"
+                  className="rounded-full p-3 backdrop-blur-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-500 hover:scale-105 border-none"
                 >
-                  {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
                 <Button
                   onClick={() => setCurrentView('auth')}
-                  className="premium-button glass-panel bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 transition-all duration-300 hover-lift"
+                  className="rounded-full px-6 py-3 backdrop-blur-sm bg-gradient-to-r from-white/15 to-white/25 hover:from-white/25 hover:to-white/35 text-white border-none transition-all duration-500 hover:scale-105 shadow-lg shadow-white/10"
                 >
                   Join StarGazer
                 </Button>
@@ -266,31 +266,31 @@ const Index = () => {
           : 'bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'
       }`}>
         {/* Premium Glassmorphic Header */}
-        <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-all duration-500 ${
+        <header className={`sticky top-0 z-50 backdrop-blur-2xl border-none shadow-lg transition-all duration-500 ${
           isDarkMode 
-            ? 'bg-gradient-to-r from-black/30 via-purple-900/20 to-black/30 border-white/10 shadow-lg shadow-purple-500/10' 
-            : 'bg-gradient-to-r from-white/40 via-blue-100/30 to-white/40 border-black/10 shadow-lg shadow-blue-500/10'
+            ? 'bg-gradient-to-r from-black/10 via-purple-900/15 to-black/10 shadow-purple-500/5' 
+            : 'bg-gradient-to-r from-white/20 via-blue-100/25 to-white/20 shadow-blue-500/5'
         }`}>
-          <div className="container mx-auto px-6 py-4">
+          <div className="container mx-auto px-8 py-5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-8">
+                <div className="flex items-center space-x-3">
                   <Star className={`w-8 h-8 ${isDarkMode ? 'text-yellow-400' : 'text-indigo-600'}`} />
-                  <span className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-indigo-900'}`}>
+                  <span className={`text-2xl font-bold tracking-wide ${isDarkMode ? 'text-white' : 'text-indigo-900'}`}>
                     StarGazer
                   </span>
                 </div>
                 
                 <div className="relative">
-                  <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                  <Search className={`w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 ${
                     isDarkMode ? 'text-white/60' : 'text-black/60'
                   }`} />
                   <Input
                     placeholder="Search the galaxy..."
-                    className={`pl-10 w-80 transition-all duration-300 ${
+                    className={`pl-12 w-96 h-12 rounded-full transition-all duration-300 border-none ${
                       isDarkMode 
-                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm' 
-                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60 backdrop-blur-sm'
+                        ? 'bg-white/10 text-white placeholder:text-white/60 backdrop-blur-sm focus:bg-white/15' 
+                        : 'bg-black/5 text-black placeholder:text-black/60 backdrop-blur-sm focus:bg-black/10'
                     }`}
                   />
                 </div>
@@ -300,14 +300,14 @@ const Index = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
+                  className={`rounded-full p-3 backdrop-blur-sm ${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} border-none transition-all duration-300 hover:scale-105`}
                 >
                   <Bell className="w-5 h-5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
+                  className={`rounded-full p-3 backdrop-blur-sm ${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} border-none transition-all duration-300 hover:scale-105`}
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Button>
@@ -316,15 +316,15 @@ const Index = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className={`${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} backdrop-blur-sm`}
+                  className={`rounded-full p-3 backdrop-blur-sm ${isDarkMode ? 'text-white hover:bg-white/10' : 'text-black hover:bg-black/10'} border-none transition-all duration-300 hover:scale-105`}
                 >
                   {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8 ring-2 ring-purple-500/50">
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10 ring-2 ring-purple-500/30">
                         <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">
                           SU
                         </AvatarFallback>
@@ -332,29 +332,29 @@ const Index = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent 
-                    className={`w-56 ${
+                    className={`w-64 rounded-2xl border-none shadow-2xl ${
                       isDarkMode 
-                        ? 'bg-black/80 border-white/20 text-white backdrop-blur-lg' 
-                        : 'bg-white/80 border-black/20 text-black backdrop-blur-lg'
+                        ? 'bg-black/60 backdrop-blur-2xl text-white' 
+                        : 'bg-white/60 backdrop-blur-2xl text-black'
                     }`} 
                     align="end" 
                     forceMount
                   >
                     <DropdownMenuItem 
-                      className="flex items-center gap-2 cursor-pointer"
+                      className="flex items-center gap-3 cursor-pointer p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
                       onClick={() => setActiveTab('profile')}
                     >
-                      <User className="w-4 h-4" />
+                      <User className="w-5 h-5" />
                       Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      className="flex items-center gap-2 cursor-pointer text-red-500 hover:text-red-600"
+                      className="flex items-center gap-3 cursor-pointer p-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300"
                       onClick={() => {
                         setUser(null);
                         setCurrentView('landing');
                       }}
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-5 h-5" />
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>

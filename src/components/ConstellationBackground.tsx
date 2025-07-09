@@ -1,9 +1,8 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export const ConstellationBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,29 +70,15 @@ export const ConstellationBackground: React.FC = () => {
       });
     }
 
-    // Mouse parallax effect
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth - 0.5) * 2,
-        y: (e.clientY / window.innerHeight - 0.5) * 2,
-      });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-
     // Animation loop
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const time = Date.now() * 0.001;
 
-      // Draw background stars with parallax
+      // Draw background stars (no hover effects)
       backgroundStars.forEach((star, index) => {
-        // Apply parallax effect
-        const parallaxX = star.x + mousePosition.x * 10 * star.layer;
-        const parallaxY = star.y + mousePosition.y * 10 * star.layer;
-
-        // Update position
+        // Update position with random movement
         star.x += Math.cos(star.angle) * star.speed;
         star.y += Math.sin(star.angle) * star.speed;
 
@@ -114,18 +99,14 @@ export const ConstellationBackground: React.FC = () => {
         ctx.shadowBlur = 5;
         ctx.shadowColor = '#ffffff';
         ctx.beginPath();
-        ctx.arc(parallaxX, parallaxY, star.size, 0, Math.PI * 2);
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
 
-      // Draw foreground stars with enhanced effects
+      // Draw foreground stars with enhanced effects (no hover effects)
       foregroundStars.forEach((star, index) => {
-        // Apply stronger parallax effect
-        const parallaxX = star.x + mousePosition.x * 25;
-        const parallaxY = star.y + mousePosition.y * 25;
-
-        // Update position
+        // Update position with random movement
         star.x += Math.cos(star.angle) * star.speed;
         star.y += Math.sin(star.angle) * star.speed;
 
@@ -150,19 +131,16 @@ export const ConstellationBackground: React.FC = () => {
         ctx.shadowBlur = star.glowIntensity * twinkle;
         ctx.shadowColor = starColors[colorIndex];
         ctx.beginPath();
-        ctx.arc(parallaxX, parallaxY, star.size, 0, Math.PI * 2);
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         // Draw connections between nearby stars with enhanced visuals
         foregroundStars.forEach((otherStar, otherIndex) => {
           if (index !== otherIndex && Math.abs(index - otherIndex) < 10) {
-            const otherParallaxX = otherStar.x + mousePosition.x * 25;
-            const otherParallaxY = otherStar.y + mousePosition.y * 25;
-            
             const distance = Math.sqrt(
-              Math.pow(parallaxX - otherParallaxX, 2) + 
-              Math.pow(parallaxY - otherParallaxY, 2)
+              Math.pow(star.x - otherStar.x, 2) + 
+              Math.pow(star.y - otherStar.y, 2)
             );
 
             if (distance < 120) {
@@ -172,8 +150,8 @@ export const ConstellationBackground: React.FC = () => {
               
               // Gradient line
               const gradient = ctx.createLinearGradient(
-                parallaxX, parallaxY, 
-                otherParallaxX, otherParallaxY
+                star.x, star.y, 
+                otherStar.x, otherStar.y
               );
               gradient.addColorStop(0, starColors[colorIndex]);
               gradient.addColorStop(1, starColors[otherIndex % starColors.length]);
@@ -183,8 +161,8 @@ export const ConstellationBackground: React.FC = () => {
               ctx.shadowBlur = 5;
               ctx.shadowColor = '#ffffff';
               ctx.beginPath();
-              ctx.moveTo(parallaxX, parallaxY);
-              ctx.lineTo(otherParallaxX, otherParallaxY);
+              ctx.moveTo(star.x, star.y);
+              ctx.lineTo(otherStar.x, otherStar.y);
               ctx.stroke();
               ctx.restore();
             }
@@ -199,9 +177,8 @@ export const ConstellationBackground: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', setCanvasSize);
-      window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [mousePosition]);
+  }, []);
 
   return (
     <canvas
