@@ -442,88 +442,184 @@ const Index = () => {
                 </div>
               </section>
 
-              {/* Gaze Section */}
-              <section>
-                <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                  Gaze
-                </h2>
-                
-                {/* Post Input */}
-                <GlassmorphicCard className="p-6 mb-6">
-                  <div className="flex space-x-4">
-                    <Avatar>
-                      <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                        SU
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <Textarea
-                        placeholder="What's on your mind? Share your cosmic thoughts..."
-                        className={`resize-none ${
-                          isDarkMode 
-                            ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                            : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                        }`}
-                      />
-                      <div className="flex justify-end mt-3">
-                        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                          Post
-                        </Button>
+              {/* GAZE and Vidss Sections Side by Side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Gaze Section */}
+                <section>
+                  <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                    GAZE
+                  </h2>
+                  
+                  {/* Post Input */}
+                  <GlassmorphicCard className="p-6 mb-6">
+                    <div className="flex space-x-4">
+                      <Avatar>
+                        <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                          SU
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="What's on your mind? Share your cosmic thoughts..."
+                          className={`resize-none ${
+                            isDarkMode 
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                          }`}
+                        />
+                        <div className="flex justify-end mt-3">
+                          <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                            Post
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </GlassmorphicCard>
+                  </GlassmorphicCard>
 
-                {/* Posts Feed */}
-                <div className="space-y-6">
-                  {[1, 2, 3].map((i) => (
-                    <GlassmorphicCard key={i} className="p-6">
-                      <div className="flex items-start space-x-4">
+                  {/* Posts Feed */}
+                  <div className="space-y-6">
+                    {[1, 2, 3].map((i) => (
+                      <GlassmorphicCard key={i} className="p-6">
+                        <div className="flex items-start space-x-4">
+                          <Avatar>
+                            <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                              U{i}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                Cosmic User {i}
+                              </h4>
+                              <span className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                                @cosmicuser{i}
+                              </span>
+                              <span className={`text-sm ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
+                                · 2h
+                              </span>
+                            </div>
+                            <p className={`mb-4 ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
+                              Just witnessed the most beautiful constellation tonight. The universe never fails to amaze me! ✨🌟
+                            </p>
+                            <div className="flex items-center space-x-6">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleLike(i)}
+                                className={`transition-all duration-300 ${
+                                  likedPosts.has(i) 
+                                    ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
+                                    : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
+                                }`}
+                              >
+                                <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i) ? 'fill-current animate-heart-pulse' : ''}`} />
+                                {Math.floor(Math.random() * 50) + (likedPosts.has(i) ? 1 : 0)}
+                              </Button>
+                              <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
+                                <MessageCircle className="w-4 h-4 mr-1" />
+                                {Math.floor(Math.random() * 20)}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </GlassmorphicCard>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Vidss Section */}
+                <section>
+                  <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                    Vidss
+                  </h2>
+                  
+                  {/* Video Upload */}
+                  <GlassmorphicCard className="p-6 mb-6">
+                    <div className="flex flex-col space-y-4">
+                      <div className="flex items-center space-x-4">
                         <Avatar>
                           <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                            U{i}
+                            SU
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                              Cosmic User {i}
-                            </h4>
-                            <span className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
-                              @cosmicuser{i}
-                            </span>
-                            <span className={`text-sm ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
-                              · 2h
-                            </span>
-                          </div>
-                          <p className={`mb-4 ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
-                            Just witnessed the most beautiful constellation tonight. The universe never fails to amaze me! ✨🌟
-                          </p>
-                          <div className="flex items-center space-x-6">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleLike(i)}
-                              className={`transition-all duration-300 ${
-                                likedPosts.has(i) 
-                                  ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
-                                  : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
-                              }`}
-                            >
-                              <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i) ? 'fill-current animate-heart-pulse' : ''}`} />
-                              {Math.floor(Math.random() * 50) + (likedPosts.has(i) ? 1 : 0)}
-                            </Button>
-                            <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
-                              <MessageCircle className="w-4 h-4 mr-1" />
-                              {Math.floor(Math.random() * 20)}
-                            </Button>
-                          </div>
+                          <Input
+                            placeholder="Share a stellar video..."
+                            className={`${
+                              isDarkMode 
+                                ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
+                                : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                            }`}
+                          />
                         </div>
                       </div>
-                    </GlassmorphicCard>
-                  ))}
-                </div>
-              </section>
+                      <div className="flex justify-end">
+                        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Video
+                        </Button>
+                      </div>
+                    </div>
+                  </GlassmorphicCard>
+
+                  {/* Video Feed */}
+                  <div className="space-y-6">
+                    {[1, 2, 3].map((i) => (
+                      <GlassmorphicCard key={i} className="p-6">
+                        <div className="flex items-start space-x-4">
+                          <Avatar>
+                            <AvatarFallback className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                              V{i}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                Video Creator {i}
+                              </h4>
+                              <span className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                                @creator{i}
+                              </span>
+                              <span className={`text-sm ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
+                                · 1h
+                              </span>
+                            </div>
+                            <div className="aspect-video bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity">
+                              <Play className="w-12 h-12 text-white" />
+                            </div>
+                            <p className={`mb-4 ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
+                              Stellar Journey Episode {i} - Exploring the cosmos beyond imagination! 🚀
+                            </p>
+                            <div className="flex items-center space-x-6">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleLike(i + 10)}
+                                className={`transition-all duration-300 ${
+                                  likedPosts.has(i + 10) 
+                                    ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
+                                    : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
+                                }`}
+                              >
+                                <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i + 10) ? 'fill-current animate-heart-pulse' : ''}`} />
+                                {Math.floor(Math.random() * 100) + (likedPosts.has(i + 10) ? 1 : 0)}
+                              </Button>
+                              <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
+                                <MessageCircle className="w-4 h-4 mr-1" />
+                                {Math.floor(Math.random() * 50)}
+                              </Button>
+                              <Button variant="ghost" size="sm" className={isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}>
+                                <Volume2 className="w-4 h-4 mr-1" />
+                                {Math.floor(Math.random() * 1000)}K
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </GlassmorphicCard>
+                    ))}
+                  </div>
+                </section>
+              </div>
             </TabsContent>
 
             <TabsContent value="dashboard" className="space-y-8">
