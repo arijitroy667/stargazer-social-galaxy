@@ -1,6 +1,6 @@
-
 import React from 'react';
 import { useState } from 'react';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,16 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { 
-  Star, 
-  Moon, 
-  Sun, 
-  Search, 
-  Home, 
-  Bell, 
-  MessageCircle, 
-  User, 
-  Settings, 
+import {
+  Star,
+  Moon,
+  Sun,
+  Search,
+  Home,
+  Bell,
+  MessageCircle,
+  User,
+  Settings,
   LogOut,
   Heart,
   Play,
@@ -39,6 +39,7 @@ import { ConstellationBackground } from '@/components/ConstellationBackground';
 import { GlassmorphicCard } from '@/components/GlassmorphicCard';
 
 const Index = () => {
+  const apiUrl = import.meta.env.VITE_BACKEND_API;
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'dashboard'>('landing');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -67,12 +68,62 @@ const Index = () => {
     setFollowedUsers(newFollowedUsers);
   };
 
-  const handleAuth = (e: React.FormEvent) => {
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock authentication with animation
-    setUser({ name: 'StarGazer User', username: '@staruser' });
-    setCurrentView('dashboard');
+
+    const form = e.target as HTMLFormElement;
+    const formMode = authMode; // 'login' or 'signup'
+
+    const username = (form.querySelector('#username') as HTMLInputElement)?.value;
+    const password = (form.querySelector('#password') as HTMLInputElement)?.value;
+    const email = (form.querySelector('#email') as HTMLInputElement)?.value;
+
+    if (formMode === 'signup') {
+      const fullName = (form.querySelector('#fullName') as HTMLInputElement)?.value;
+      const avatarFile = (form.querySelector('#avatar') as HTMLInputElement)?.files?.[0];
+      const coverFile = (form.querySelector('#coverImage') as HTMLInputElement)?.files?.[0];
+
+      const formData = new FormData();
+      formData.append('fullName', fullName);
+      formData.append('email', email);
+      formData.append('username', username);
+      formData.append('password', password);
+      if (avatarFile) formData.append('avatar', avatarFile);
+      if (coverFile) formData.append('coverImage', coverFile);
+
+      try {
+        const response = await axios.post(`${apiUrl}/users/register`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        const userData = response.data;
+        setUser(userData);
+        setCurrentView('dashboard');
+      } catch (error) {
+        console.error('Signup failed:', error);
+        // optionally show error message
+      }
+    } else {
+      // Login
+      try {
+        const response = await axios.post(`${apiUrl}/users/login`, {
+          email,
+          username,
+          password,
+        });
+
+        const userData = response.data.user;
+        setUser(userData);
+        setCurrentView('dashboard');
+      } catch (error) {
+        console.error('Login failed:', error);
+        // optionally show error message
+      }
+    }
   };
+
+
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -83,7 +134,7 @@ const Index = () => {
       <ThemeProvider isDark={isDarkMode}>
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
           <ConstellationBackground />
-          
+
           {/* Premium Glassmorphic Navigation */}
           <nav className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-gradient-to-r from-white/5 via-white/10 to-white/5 border-none shadow-lg shadow-black/5">
             <div className="container mx-auto px-8 py-5 flex justify-between items-center">
@@ -91,7 +142,7 @@ const Index = () => {
                 <Star className="w-8 h-8 text-yellow-400 animate-twinkle" />
                 <span className="text-2xl font-bold text-white shimmer-text tracking-wide">StarGazer</span>
               </div>
-              
+
               <div className="flex items-center space-x-6">
                 <Button
                   variant="ghost"
@@ -123,7 +174,7 @@ const Index = () => {
               <p className="text-xl md:text-2xl text-purple-200 mb-8 animate-spring-up" style={{ animationDelay: '0.8s' }}>
                 A cosmic social experience where your thoughts shine as bright as constellations
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 justify-center" style={{ animationDelay: '1s' }}>
                 <Button
                   size="lg"
@@ -158,7 +209,7 @@ const Index = () => {
       <ThemeProvider isDark={isDarkMode}>
         <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
           <ConstellationBackground />
-          
+
           <div className="flex items-center justify-center min-h-screen px-6">
             <GlassmorphicCard className="w-full max-w-md">
               <div className="p-8">
@@ -168,13 +219,14 @@ const Index = () => {
                     {authMode === 'login' ? 'Welcome Back' : 'Join StarGazer'}
                   </h2>
                   <p className="text-purple-200">
-                    {authMode === 'login' 
-                      ? 'Sign in to your cosmic journey' 
+                    {authMode === 'login'
+                      ? 'Sign in to your cosmic journey'
                       : 'Create your stellar profile'
                     }
                   </p>
                 </div>
 
+                {/* Login/SignUp form submission */}
                 <form onSubmit={handleAuth} className="space-y-6">
                   {authMode === 'signup' && (
                     <>
@@ -187,6 +239,7 @@ const Index = () => {
                           placeholder="Your cosmic name"
                         />
                       </div>
+
                       <div>
                         <Label htmlFor="email" className="text-white">Email</Label>
                         <Input
@@ -196,21 +249,51 @@ const Index = () => {
                           placeholder="your@email.com"
                         />
                       </div>
+
+                      <div>
+                        <Label htmlFor="avatar" className="text-white">Avatar Image</Label>
+                        <Input
+                          id="avatar"
+                          type="file"
+                          accept="image/*"
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="coverImage" className="text-white">Cover Image (optional)</Label>
+                        <Input
+                          id="coverImage"
+                          type="file"
+                          accept="image/*"
+                          className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        />
+                      </div>
                     </>
                   )}
-                  
+
                   <div>
                     <Label htmlFor="username" className="text-white">
-                      {authMode === 'login' ? 'Username or Email' : 'Username'}
+                      {authMode === 'login' ? 'Username' : 'Username'}
                     </Label>
                     <Input
                       id="username"
                       type="text"
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      placeholder={authMode === 'login' ? 'username or email' : '@yourusername'}
+                      placeholder={authMode === 'login' ? 'username' : '@yourusername'}
                     />
                   </div>
-                  
+
+                  <div>
+                    <Label htmlFor="email" className="text-white">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                      placeholder="your@email.com"
+                    />
+                  </div>
+
                   <div>
                     <Label htmlFor="password" className="text-white">Password</Label>
                     <Input
@@ -229,13 +312,14 @@ const Index = () => {
                   </Button>
                 </form>
 
+
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
                     className="text-purple-300 hover:text-white transition-colors"
                   >
-                    {authMode === 'login' 
-                      ? "Don't have an account? Sign up" 
+                    {authMode === 'login'
+                      ? "Don't have an account? Sign up"
                       : "Already have an account? Sign in"
                     }
                   </button>
@@ -260,17 +344,15 @@ const Index = () => {
   // Dashboard View
   return (
     <ThemeProvider isDark={isDarkMode}>
-      <div className={`min-h-screen transition-all duration-500 ${
-        isDarkMode 
-          ? 'bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950' 
-          : 'bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'
-      }`}>
-        {/* Premium Glassmorphic Header */}
-        <header className={`sticky top-0 z-50 backdrop-blur-2xl border-none shadow-lg transition-all duration-500 ${
-          isDarkMode 
-            ? 'bg-gradient-to-r from-black/10 via-purple-900/15 to-black/10 shadow-purple-500/5' 
-            : 'bg-gradient-to-r from-white/20 via-blue-100/25 to-white/20 shadow-blue-500/5'
+      <div className={`min-h-screen transition-all duration-500 ${isDarkMode
+        ? 'bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950'
+        : 'bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100'
         }`}>
+        {/* Premium Glassmorphic Header */}
+        <header className={`sticky top-0 z-50 backdrop-blur-2xl border-none shadow-lg transition-all duration-500 ${isDarkMode
+          ? 'bg-gradient-to-r from-black/10 via-purple-900/15 to-black/10 shadow-purple-500/5'
+          : 'bg-gradient-to-r from-white/20 via-blue-100/25 to-white/20 shadow-blue-500/5'
+          }`}>
           <div className="container mx-auto px-8 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-8">
@@ -280,18 +362,16 @@ const Index = () => {
                     StarGazer
                   </span>
                 </div>
-                
+
                 <div className="relative">
-                  <Search className={`w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 ${
-                    isDarkMode ? 'text-white/60' : 'text-black/60'
-                  }`} />
+                  <Search className={`w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-white/60' : 'text-black/60'
+                    }`} />
                   <Input
                     placeholder="Search the galaxy..."
-                    className={`pl-12 w-96 h-12 rounded-full transition-all duration-300 border-none ${
-                      isDarkMode 
-                        ? 'bg-white/10 text-white placeholder:text-white/60 backdrop-blur-sm focus:bg-white/15' 
-                        : 'bg-black/5 text-black placeholder:text-black/60 backdrop-blur-sm focus:bg-black/10'
-                    }`}
+                    className={`pl-12 w-96 h-12 rounded-full transition-all duration-300 border-none ${isDarkMode
+                      ? 'bg-white/10 text-white placeholder:text-white/60 backdrop-blur-sm focus:bg-white/15'
+                      : 'bg-black/5 text-black placeholder:text-black/60 backdrop-blur-sm focus:bg-black/10'
+                      }`}
                   />
                 </div>
               </div>
@@ -311,7 +391,7 @@ const Index = () => {
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Button>
-                
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -331,23 +411,22 @@ const Index = () => {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    className={`w-64 rounded-2xl border-none shadow-2xl ${
-                      isDarkMode 
-                        ? 'bg-black/60 backdrop-blur-2xl text-white' 
-                        : 'bg-white/60 backdrop-blur-2xl text-black'
-                    }`} 
-                    align="end" 
+                  <DropdownMenuContent
+                    className={`w-64 rounded-2xl border-none shadow-2xl ${isDarkMode
+                      ? 'bg-black/60 backdrop-blur-2xl text-white'
+                      : 'bg-white/60 backdrop-blur-2xl text-black'
+                      }`}
+                    align="end"
                     forceMount
                   >
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="flex items-center gap-3 cursor-pointer p-4 rounded-xl hover:bg-white/10 transition-all duration-300"
                       onClick={() => setActiveTab('profile')}
                     >
                       <User className="w-5 h-5" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="flex items-center gap-3 cursor-pointer p-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300"
                       onClick={() => {
                         setUser(null);
@@ -367,27 +446,22 @@ const Index = () => {
         {/* Main Content */}
         <div className="container mx-auto px-6 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-            <TabsList className={`grid w-full grid-cols-4 ${
-              isDarkMode ? 'bg-white/10 backdrop-blur-sm' : 'bg-black/5 backdrop-blur-sm'
-            }`}>
-              <TabsTrigger value="socials" className={`${
-                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+            <TabsList className={`grid w-full grid-cols-4 ${isDarkMode ? 'bg-white/10 backdrop-blur-sm' : 'bg-black/5 backdrop-blur-sm'
               }`}>
+              <TabsTrigger value="socials" className={`${isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+                }`}>
                 Socials
               </TabsTrigger>
-              <TabsTrigger value="dashboard" className={`${
-                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
-              }`}>
+              <TabsTrigger value="dashboard" className={`${isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+                }`}>
                 Dashboard
               </TabsTrigger>
-              <TabsTrigger value="profile" className={`${
-                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
-              }`}>
+              <TabsTrigger value="profile" className={`${isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+                }`}>
                 Profile
               </TabsTrigger>
-              <TabsTrigger value="settings" className={`${
-                isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
-              }`}>
+              <TabsTrigger value="settings" className={`${isDarkMode ? 'data-[state=active]:bg-white/20 text-white' : 'data-[state=active]:bg-white text-black'
+                }`}>
                 Settings
               </TabsTrigger>
             </TabsList>
@@ -426,14 +500,13 @@ const Index = () => {
                           </span>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => handleFollow(i)}
-                        className={`w-full transition-all duration-300 hover-lift ${
-                          followedUsers.has(i) 
-                            ? 'bg-green-500 hover:bg-green-600 text-white' 
-                            : 'premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                        }`}
+                        className={`w-full transition-all duration-300 hover-lift ${followedUsers.has(i)
+                          ? 'bg-green-500 hover:bg-green-600 text-white'
+                          : 'premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                          }`}
                       >
                         {followedUsers.has(i) ? '✓ Following' : 'Follow'}
                       </Button>
@@ -449,7 +522,7 @@ const Index = () => {
                   <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     GAZE
                   </h2>
-                  
+
                   {/* Post Input */}
                   <GlassmorphicCard className="p-6 mb-6">
                     <div className="flex space-x-4">
@@ -461,11 +534,10 @@ const Index = () => {
                       <div className="flex-1">
                         <Textarea
                           placeholder="What's on your mind? Share your cosmic thoughts..."
-                          className={`resize-none ${
-                            isDarkMode 
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                          }`}
+                          className={`resize-none ${isDarkMode
+                            ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                            : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                            }`}
                         />
                         <div className="flex justify-end mt-3">
                           <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
@@ -502,15 +574,14 @@ const Index = () => {
                               Just witnessed the most beautiful constellation tonight. The universe never fails to amaze me! ✨🌟
                             </p>
                             <div className="flex items-center space-x-6">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleLike(i)}
-                                className={`transition-all duration-300 ${
-                                  likedPosts.has(i) 
-                                    ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
-                                    : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
-                                }`}
+                                className={`transition-all duration-300 ${likedPosts.has(i)
+                                  ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}`
+                                  : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
+                                  }`}
                               >
                                 <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i) ? 'fill-current animate-heart-pulse' : ''}`} />
                                 {Math.floor(Math.random() * 50) + (likedPosts.has(i) ? 1 : 0)}
@@ -532,7 +603,7 @@ const Index = () => {
                   <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     Vidss
                   </h2>
-                  
+
                   {/* Video Upload */}
                   <GlassmorphicCard className="p-6 mb-6">
                     <div className="flex flex-col space-y-4">
@@ -545,11 +616,10 @@ const Index = () => {
                         <div className="flex-1">
                           <Input
                             placeholder="Share a stellar video..."
-                            className={`${
-                              isDarkMode 
-                                ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                                : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                            }`}
+                            className={`${isDarkMode
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                              }`}
                           />
                         </div>
                       </div>
@@ -591,15 +661,14 @@ const Index = () => {
                               Stellar Journey Episode {i} - Exploring the cosmos beyond imagination! 🚀
                             </p>
                             <div className="flex items-center space-x-6">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleLike(i + 10)}
-                                className={`transition-all duration-300 ${
-                                  likedPosts.has(i + 10) 
-                                    ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}` 
-                                    : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
-                                }`}
+                                className={`transition-all duration-300 ${likedPosts.has(i + 10)
+                                  ? `text-red-500 hover:text-red-600 ${isDarkMode ? '' : 'hover:text-red-700'}`
+                                  : `${isDarkMode ? 'text-white/60 hover:text-white' : 'text-black/60 hover:text-black'}`
+                                  }`}
                               >
                                 <Heart className={`w-4 h-4 mr-1 ${likedPosts.has(i + 10) ? 'fill-current animate-heart-pulse' : ''}`} />
                                 {Math.floor(Math.random() * 100) + (likedPosts.has(i + 10) ? 1 : 0)}
@@ -694,9 +763,8 @@ const Index = () => {
                               Manage
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className={`${
-                            isDarkMode ? 'bg-black/80' : 'bg-white/80'
-                          } backdrop-blur-lg border-white/20`}>
+                          <DialogContent className={`${isDarkMode ? 'bg-black/80' : 'bg-white/80'
+                            } backdrop-blur-lg border-white/20`}>
                             <DialogHeader>
                               <DialogTitle className={isDarkMode ? 'text-white' : 'text-black'}>
                                 Manage Playlist
@@ -705,24 +773,22 @@ const Index = () => {
                             <div className="space-y-4">
                               <div>
                                 <Label className={isDarkMode ? 'text-white' : 'text-black'}>Playlist Name</Label>
-                                <Input 
+                                <Input
                                   defaultValue={`Cosmic Playlist ${i}`}
-                                  className={`${
-                                    isDarkMode 
-                                      ? 'bg-white/10 border-white/20 text-white' 
-                                      : 'bg-black/5 border-black/20 text-black'
-                                  }`}
+                                  className={`${isDarkMode
+                                    ? 'bg-white/10 border-white/20 text-white'
+                                    : 'bg-black/5 border-black/20 text-black'
+                                    }`}
                                 />
                               </div>
                               <div>
                                 <Label className={isDarkMode ? 'text-white' : 'text-black'}>Description</Label>
-                                <Textarea 
+                                <Textarea
                                   placeholder="Describe your playlist..."
-                                  className={`${
-                                    isDarkMode 
-                                      ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                                      : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                                  }`}
+                                  className={`${isDarkMode
+                                    ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                                    : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                                    }`}
                                 />
                               </div>
                               <div className="flex justify-end space-x-2">
@@ -878,11 +944,10 @@ const Index = () => {
                       <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Full Name</Label>
                       <Input
                         defaultValue="StarGazer User"
-                        className={`${
-                          isDarkMode 
-                            ? 'bg-white/10 border-white/20 text-white' 
-                            : 'bg-black/5 border-black/20 text-black'
-                        }`}
+                        className={`${isDarkMode
+                          ? 'bg-white/10 border-white/20 text-white'
+                          : 'bg-black/5 border-black/20 text-black'
+                          }`}
                       />
                     </div>
                     <div>
@@ -890,25 +955,23 @@ const Index = () => {
                       <Input
                         defaultValue="staruser@cosmic.com"
                         type="email"
-                        className={`${
-                          isDarkMode 
-                            ? 'bg-white/10 border-white/20 text-white' 
-                            : 'bg-black/5 border-black/20 text-black'
-                        }`}
+                        className={`${isDarkMode
+                          ? 'bg-white/10 border-white/20 text-white'
+                          : 'bg-black/5 border-black/20 text-black'
+                          }`}
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Bio</Label>
                     <Textarea
                       placeholder="Tell the galaxy about yourself..."
                       defaultValue="Exploring the cosmos one star at a time ✨"
-                      className={`${
-                        isDarkMode 
-                          ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                          : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                      }`}
+                      className={`${isDarkMode
+                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                        }`}
                     />
                   </div>
 
@@ -922,11 +985,10 @@ const Index = () => {
                         <Input
                           type="password"
                           placeholder="Enter current password"
-                          className={`${
-                            isDarkMode 
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                          }`}
+                          className={`${isDarkMode
+                            ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                            : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                            }`}
                         />
                       </div>
                       <div>
@@ -934,11 +996,10 @@ const Index = () => {
                         <Input
                           type="password"
                           placeholder="Enter new password"
-                          className={`${
-                            isDarkMode 
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                          }`}
+                          className={`${isDarkMode
+                            ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                            : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                            }`}
                         />
                       </div>
                       <div>
@@ -946,11 +1007,10 @@ const Index = () => {
                         <Input
                           type="password"
                           placeholder="Confirm new password"
-                          className={`${
-                            isDarkMode 
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60' 
-                              : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                          }`}
+                          className={`${isDarkMode
+                            ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
+                            : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
+                            }`}
                         />
                       </div>
                     </div>
