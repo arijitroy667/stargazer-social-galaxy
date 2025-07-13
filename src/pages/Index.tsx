@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +47,13 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('socials');
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (user) {
+      console.log('User updated:', user);
+    }
+  }, [user]);
+
 
   const handleLike = (postId: number) => {
     const newLikedPosts = new Set(likedPosts);
@@ -97,8 +104,9 @@ const Index = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        const userData = response.data;
+        const userData = response.data.data;
         setUser(userData);
+
         setCurrentView('dashboard');
       } catch (error) {
         console.error('Signup failed:', error);
@@ -113,8 +121,9 @@ const Index = () => {
           password,
         });
 
-        const userData = response.data.user;
+        const userData = response.data.data.user;
         setUser(userData);
+        //console.log(userData);
         setCurrentView('dashboard');
       } catch (error) {
         console.error('Login failed:', error);
@@ -122,7 +131,6 @@ const Index = () => {
       }
     }
   };
-
 
 
   const toggleTheme = () => {
@@ -405,11 +413,13 @@ const Index = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10 ring-2 ring-purple-500/30">
+                        <AvatarImage src={user.avatar} alt={user.fullName} />
                         <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">
-                          SU
+                          SG
                         </AvatarFallback>
                       </Avatar>
                     </Button>
+
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     className={`w-64 rounded-2xl border-none shadow-2xl ${isDarkMode
@@ -911,15 +921,16 @@ const Index = () => {
                 <div className="p-6">
                   <div className="flex items-end space-x-6 -mt-16">
                     <Avatar className="w-24 h-24 border-4 border-white">
+                      <AvatarImage src={user.avatar} alt={user.fullName} />
                       <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-2xl">
-                        SU
+                        SG
                       </AvatarFallback>
                     </Avatar>
                     <div className="pb-2">
                       <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                        StarGazer User
+                        {user.fullName}
                       </h1>
-                      <p className={`${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>@staruser</p>
+                      <p className={`${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>{user.username}</p>
                       <div className="flex space-x-6 mt-2">
                         <span className={`text-sm ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>
                           <strong>128</strong> Following
@@ -943,7 +954,7 @@ const Index = () => {
                     <div>
                       <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Full Name</Label>
                       <Input
-                        defaultValue="StarGazer User"
+                        defaultValue={user.fullName}
                         className={`${isDarkMode
                           ? 'bg-white/10 border-white/20 text-white'
                           : 'bg-black/5 border-black/20 text-black'
@@ -953,7 +964,7 @@ const Index = () => {
                     <div>
                       <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Email</Label>
                       <Input
-                        defaultValue="staruser@cosmic.com"
+                        defaultValue={user.email}
                         type="email"
                         className={`${isDarkMode
                           ? 'bg-white/10 border-white/20 text-white'
@@ -963,17 +974,6 @@ const Index = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Bio</Label>
-                    <Textarea
-                      placeholder="Tell the galaxy about yourself..."
-                      defaultValue="Exploring the cosmos one star at a time ✨"
-                      className={`${isDarkMode
-                        ? 'bg-white/10 border-white/20 text-white placeholder:text-white/60'
-                        : 'bg-black/5 border-black/20 text-black placeholder:text-black/60'
-                        }`}
-                    />
-                  </div>
 
                   <div>
                     <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
