@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,6 +39,8 @@ import { ConstellationBackground } from '@/components/ConstellationBackground';
 import { GlassmorphicCard } from '@/components/GlassmorphicCard';
 
 const Index = () => {
+  const fullNameRef = useRef(null);
+  const emailRef = useRef(null);
   const apiUrl = import.meta.env.VITE_BACKEND_API;
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'dashboard'>('landing');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -129,6 +131,29 @@ const Index = () => {
         console.error('Login failed:', error);
         // optionally show error message
       }
+    }
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const fullName = fullNameRef.current?.value;
+    const email = emailRef.current?.value;
+
+    try {
+      const response = await axios.patch(`${apiUrl}/users/update-account`, {
+        fullName,
+        email,
+      },
+        {
+          withCredentials: true
+        });
+
+      console.log('Update successful:', response.data);
+      // Show success notification/toast if needed
+    } catch (error) {
+      console.error('Error updating account:', error);
+      // Show error notification/toast if needed
     }
   };
 
@@ -950,29 +975,44 @@ const Index = () => {
                   Edit Profile
                 </h2>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Full Name</Label>
-                      <Input
-                        defaultValue={user.fullName}
-                        className={`${isDarkMode
-                          ? 'bg-white/10 border-white/20 text-white'
-                          : 'bg-black/5 border-black/20 text-black'
-                          }`}
-                      />
+                  <form onSubmit={handleUpdateAccount}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className={isDarkMode ? 'text-white' : 'text-black'}>Full Name</Label>
+                        <Input
+                          defaultValue={user.fullName}
+                          ref={fullNameRef}
+                          className={
+                            isDarkMode
+                              ? 'bg-white/10 border-white/20 text-white'
+                              : 'bg-black/5 border-black/20 text-black'
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label className={isDarkMode ? 'text-white' : 'text-black'}>Email</Label>
+                        <Input
+                          defaultValue={user.email}
+                          type="email"
+                          ref={emailRef}
+                          className={
+                            isDarkMode
+                              ? 'bg-white/10 border-white/20 text-white'
+                              : 'bg-black/5 border-black/20 text-black'
+                          }
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-4 col-span-full">
+                        <Button
+                          type="submit"
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                        >
+                          Save Changes
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <Label className={`${isDarkMode ? 'text-white' : 'text-black'}`}>Email</Label>
-                      <Input
-                        defaultValue={user.email}
-                        type="email"
-                        className={`${isDarkMode
-                          ? 'bg-white/10 border-white/20 text-white'
-                          : 'bg-black/5 border-black/20 text-black'
-                          }`}
-                      />
-                    </div>
-                  </div>
+                  </form>
+
 
 
                   <div>
@@ -1017,7 +1057,6 @@ const Index = () => {
                   </div>
 
                   <div className="flex justify-end space-x-4">
-                    <Button variant="outline">Cancel</Button>
                     <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
                       Save Changes
                     </Button>
