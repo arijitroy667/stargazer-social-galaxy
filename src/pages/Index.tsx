@@ -137,11 +137,15 @@ const Index = () => {
     } else {
       // Login
       try {
-        const response = await axios.post(`${apiUrl}/users/login`, {
-          email,
-          username,
-          password,
-        });
+        const response = await axios.post(
+          `${apiUrl}/users/login`,
+          {
+            email,
+            username,
+            password,
+          },
+          { withCredentials: true }
+        );
 
         const userData = response.data.data.user;
         setUser(userData);
@@ -169,14 +173,70 @@ const Index = () => {
         },
         {
           withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
       );
 
-      console.log("Update successful:", response.data);
+      if (response.data.success) {
+        setUser((prev) => ({
+          ...prev,
+          fullName,
+          email,
+        }));
+        console.log("Update successful:", response.data);
+      }
       // Show success notification/toast if needed
     } catch (error) {
+      if (error.response?.status === 401) {
+        // Handle unauthorized - maybe redirect to login
+        setCurrentView("auth");
+      }
       console.error("Error updating account:", error);
-      // Show error notification/toast if needed
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const oldPassword = (
+      form.querySelector("#currentPassword") as HTMLInputElement
+    )?.value;
+    const newPassword = (form.querySelector("#newPassword") as HTMLInputElement)
+      ?.value;
+    const confirmPassword = (
+      form.querySelector("#confirmPassword") as HTMLInputElement
+    )?.value;
+
+    if (newPassword !== confirmPassword) {
+      // You can show a toast or alert here
+      alert("New password and confirm password do not match.");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${apiUrl}/users/change-password`,
+        {
+          oldPassword,
+          newPassword,
+        },
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.data.success) {
+        // Optionally show success notification
+        alert("Password changed successfully.");
+      }
+    } catch (error) {
+      // Optionally show error notification
+      alert("Failed to change password.");
+      console.error("Error changing password:", error);
     }
   };
 
@@ -1437,68 +1497,75 @@ const Index = () => {
                     >
                       Change Password
                     </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label
-                          className={`${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
-                        >
-                          Current Password
-                        </Label>
-                        <Input
-                          type="password"
-                          placeholder="Enter current password"
-                          className={`${
-                            isDarkMode
-                              ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                              : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
-                          }`}
-                        />
+                    <form onSubmit={handleChangePassword}>
+                      <div className="space-y-4">
+                        <div>
+                          <Label
+                            className={`${
+                              isDarkMode ? "text-white" : "text-black"
+                            }`}
+                          >
+                            Current Password
+                          </Label>
+                          <Input
+                            id="currentPassword"
+                            type="password"
+                            placeholder="Enter current password"
+                            className={`${
+                              isDarkMode
+                                ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                                : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <Label
+                            className={`${
+                              isDarkMode ? "text-white" : "text-black"
+                            }`}
+                          >
+                            New Password
+                          </Label>
+                          <Input
+                            id="newPassword"
+                            type="password"
+                            placeholder="Enter new password"
+                            className={`${
+                              isDarkMode
+                                ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                                : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <Label
+                            className={`${
+                              isDarkMode ? "text-white" : "text-black"
+                            }`}
+                          >
+                            Confirm New Password
+                          </Label>
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="Confirm new password"
+                            className={`${
+                              isDarkMode
+                                ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                                : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
+                            }`}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <Label
-                          className={`${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
+                      <div className="flex justify-end space-x-4 mt-4">
+                        <Button
+                          type="submit"
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                         >
-                          New Password
-                        </Label>
-                        <Input
-                          type="password"
-                          placeholder="Enter new password"
-                          className={`${
-                            isDarkMode
-                              ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                              : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
-                          }`}
-                        />
+                          Save Changes
+                        </Button>
                       </div>
-                      <div>
-                        <Label
-                          className={`${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
-                        >
-                          Confirm New Password
-                        </Label>
-                        <Input
-                          type="password"
-                          placeholder="Confirm new password"
-                          className={`${
-                            isDarkMode
-                              ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                              : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-4">
-                    <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                      Save Changes
-                    </Button>
+                    </form>
                   </div>
                 </div>
               </GlassmorphicCard>
