@@ -158,6 +158,27 @@ const Index = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await axios.post(
+        `${apiUrl}/users/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      setUser(null);
+      setCurrentView("landing");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setUser(null);
+      setCurrentView("landing");
+    }
+  };
+
   const handleUpdateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -623,10 +644,7 @@ const Index = () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-3 cursor-pointer p-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300"
-                      onClick={() => {
-                        setUser(null);
-                        setCurrentView("landing");
-                      }}
+                      onClick={handleLogout}
                     >
                       <LogOut className="w-5 h-5" />
                       Log out
