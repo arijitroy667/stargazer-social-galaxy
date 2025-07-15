@@ -63,6 +63,9 @@ const Index = () => {
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
 
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (user) {
       console.log("User updated:", user);
@@ -261,9 +264,167 @@ const Index = () => {
     }
   };
 
+  // Handler for updating avatar
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    try {
+      const response = await axios.patch(`${apiUrl}/users/avatar`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (response.data.success) {
+        setUser((prev) => ({
+          ...prev,
+          avatar: response.data.data.avatar,
+        }));
+      }
+    } catch (error) {
+      alert("Failed to update avatar.");
+      console.error("Avatar update error:", error);
+    }
+  };
+
+  // Handler for updating cover image
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("coverImage", file);
+
+    try {
+      const response = await axios.patch(
+        `${apiUrl}/users/cover-image`,
+        formData,
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      if (response.data.success) {
+        setUser((prev) => ({
+          ...prev,
+          coverImage: response.data.data.coverImage,
+        }));
+      }
+    } catch (error) {
+      alert("Failed to update cover image.");
+      console.error("Cover image update error:", error);
+    }
+  };
+
+  const useFollowStats = (userId: string | number) => {
+    const [stats, setStats] = useState({ followers: 0, following: 0 });
+
+    useEffect(() => {
+      if (!userId) return;
+
+      const fetchStats = async () => {
+        try {
+          const [followersRes, followingRes] = await Promise.all([
+            axios.get(`${apiUrl}/subscriptions/u/${userId}`, {
+              withCredentials: true,
+            }),
+            axios.get(`${apiUrl}/subscriptions/c/${userId}`, {
+              withCredentials: true,
+            }),
+          ]);
+          setStats({
+            followers: followersRes.data.count || 0,
+            following: followingRes.data.count || 0,
+          });
+        } catch (error) {
+          setStats({ followers: 0, following: 0 });
+          console.error("Error fetching follow stats:", error);
+        }
+      };
+
+      fetchStats();
+    }, [userId]);
+
+    return stats;
+  };
+
+  const followStats = useFollowStats(user?._id);
+
+  // Getter for dashboard tab data
+  const useDashboardData = (userId: string | number) => {
+    const [data, setData] = useState({
+      playlists: [],
+      videos: [],
+      tweets: [],
+      likedVideos: [],
+      loading: true,
+      error: null,
+    });
+
+    useEffect(() => {
+      if (!userId) return;
+      setData((prev) => ({ ...prev, loading: true }));
+
+      const fetchAll = async () => {
+        try {
+          const [playlistsRes, videosRes, tweetsRes, likedVideosRes] =
+            await Promise.all([
+              axios.get(`${apiUrl}/playlist/user/${userId}`, {
+                withCredentials: true,
+              }),
+              axios.get(`${apiUrl}/videos`, {
+                withCredentials: true,
+              }),
+              axios.get(`${apiUrl}/tweets/user/${userId}`, {
+                withCredentials: true,
+              }),
+              axios.get(`${apiUrl}/likes/videos`, {
+                withCredentials: true,
+              }),
+            ]);
+          setData({
+          playlists: Array.isArray(playlistsRes.data.data) ? playlistsRes.data.data : [],
+          videos: Array.isArray(videosRes.data.data) ? videosRes.data.data : [],
+          tweets: Array.isArray(tweetsRes.data.data) ? tweetsRes.data.data : [],
+          likedVideos: Array.isArray(likedVideosRes.data.data) ? likedVideosRes.data.data : [],
+          loading: false,
+          error: null,
+        });
+        } catch (error) {
+          setData((prev) => ({
+            ...prev,
+            loading: false,
+            error: error,
+          }));
+        }
+      };
+
+      fetchAll();
+    }, [userId]);
+
+    return data;
+  };
+
+  // Separate creation functions
+  const createPlaylist = async (playlistData: any) => {
+    return axios.post(`${apiUrl}/playlists`, playlistData, {
+      withCredentials: true,
+    });
+  };
+
+  const uploadVideo = async (videoData: any) => {
+    return axios.post(`${apiUrl}/videos`, videoData, { withCredentials: true });
+  };
+
+  const createTweet = async (tweetData: any) => {
+    return axios.post(`${apiUrl}/tweets`, tweetData, { withCredentials: true });
+  };
+
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
+
+  const dashboardData = useDashboardData(user?._id);
 
   if (currentView === "landing") {
     return (
@@ -518,7 +679,7 @@ const Index = () => {
     );
   }
 
-  // Dashboard View
+  // Dashboard
   return (
     <ThemeProvider isDark={isDarkMode}>
       <div
@@ -1058,13 +1219,55 @@ const Index = () => {
             <TabsContent value="dashboard" className="space-y-8">
               {/* Cover Header */}
               <GlassmorphicCard className="relative overflow-hidden">
-                <div className="h-48 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600"></div>
-                <div className="p-6">
-                  <div className="flex items-end space-x-6 -mt-16">
-                    <Avatar className="w-24 h-24 border-4 border-white">
+                {/* Cover Image as background */}
+                <div className="absolute inset-0 h-48 w-full overflow-hidden z-0">
+                  {user.coverImage ? (
+                    <img
+                      src={user.coverImage}
+                      alt="Cover"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="h-48 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600"></div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={coverInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleCoverChange}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 bottom-4 bg-black/60 text-white px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => coverInputRef.current?.click()}
+                  >
+                    Change Cover
+                  </button>
+                  {/* Overlay for better text visibility */}
+                  <div className="absolute inset-0 bg-black/30"></div>
+                </div>
+                <div className="relative z-10 p-6 pt-32">
+                  <div className="flex items-end space-x-6">
+                    {/* Avatar */}
+                    <Avatar
+                      className="w-24 h-24 border-4 border-white cursor-pointer relative group"
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      <AvatarImage src={user.avatar} alt={user.fullName} />
                       <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-2xl">
-                        SU
+                        SG
                       </AvatarFallback>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={avatarInputRef}
+                        style={{ display: "none" }}
+                        onChange={handleAvatarChange}
+                      />
+                      <span className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                        Change
+                      </span>
                     </Avatar>
                     <div className="pb-2">
                       <h1
@@ -1072,14 +1275,14 @@ const Index = () => {
                           isDarkMode ? "text-white" : "text-black"
                         }`}
                       >
-                        StarGazer User
+                        {user.fullName}
                       </h1>
                       <p
                         className={`${
                           isDarkMode ? "text-white/60" : "text-black/60"
                         }`}
                       >
-                        @staruser
+                        {user.username}
                       </p>
                       <div className="flex space-x-6 mt-2">
                         <span
@@ -1087,14 +1290,14 @@ const Index = () => {
                             isDarkMode ? "text-white/80" : "text-black/80"
                           }`}
                         >
-                          <strong>128</strong> Following
+                          <strong>{followStats.following}</strong> Following
                         </span>
                         <span
                           className={`text-sm ${
                             isDarkMode ? "text-white/80" : "text-black/80"
                           }`}
                         >
-                          <strong>1.2K</strong> Followers
+                          <strong>{followStats.followers}</strong> Followers
                         </span>
                       </div>
                     </div>
@@ -1150,255 +1353,98 @@ const Index = () => {
                 </TabsList>
 
                 <TabsContent value="playlists">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3
-                      className={`text-xl font-bold ${
-                        isDarkMode ? "text-white" : "text-black"
-                      }`}
-                    >
-                      My Playlists
-                    </h3>
-                    <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Playlist
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3].map((i) => (
-                      <GlassmorphicCard key={i} className="p-4">
-                        <div className="aspect-video bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-4"></div>
-                        <h4
-                          className={`font-semibold mb-2 ${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
-                        >
-                          Cosmic Playlist {i}
-                        </h4>
-                        <p
-                          className={`text-sm mb-4 ${
-                            isDarkMode ? "text-white/60" : "text-black/60"
-                          }`}
-                        >
-                          {Math.floor(Math.random() * 20)} videos
-                        </p>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                            >
-                              Manage
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent
-                            className={`${
-                              isDarkMode ? "bg-black/80" : "bg-white/80"
-                            } backdrop-blur-lg border-white/20`}
+                  {dashboardData.loading ? (
+                    <div>Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {dashboardData.playlists.map((playlist: any) => (
+                        <GlassmorphicCard key={playlist._id} className="p-4">
+                          {/* Render playlist info */}
+                          <h4
+                            className={`font-semibold mb-2 ${
+                              isDarkMode ? "text-white" : "text-black"
+                            }`}
                           >
-                            <DialogHeader>
-                              <DialogTitle
-                                className={
-                                  isDarkMode ? "text-white" : "text-black"
-                                }
-                              >
-                                Manage Playlist
-                              </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label
-                                  className={
-                                    isDarkMode ? "text-white" : "text-black"
-                                  }
-                                >
-                                  Playlist Name
-                                </Label>
-                                <Input
-                                  defaultValue={`Cosmic Playlist ${i}`}
-                                  className={`${
-                                    isDarkMode
-                                      ? "bg-white/10 border-white/20 text-white"
-                                      : "bg-black/5 border-black/20 text-black"
-                                  }`}
-                                />
-                              </div>
-                              <div>
-                                <Label
-                                  className={
-                                    isDarkMode ? "text-white" : "text-black"
-                                  }
-                                >
-                                  Description
-                                </Label>
-                                <Textarea
-                                  placeholder="Describe your playlist..."
-                                  className={`${
-                                    isDarkMode
-                                      ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                                      : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
-                                  }`}
-                                />
-                              </div>
-                              <div className="flex justify-end space-x-2">
-                                <Button variant="outline">Cancel</Button>
-                                <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
-                                  Save Changes
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </GlassmorphicCard>
-                    ))}
-                  </div>
+                            {playlist.name}
+                          </h4>
+                          <p
+                            className={`text-sm mb-4 ${
+                              isDarkMode ? "text-white/60" : "text-black/60"
+                            }`}
+                          >
+                            {playlist.videos?.length || 0} videos
+                          </p>
+                          {/* ...manage dialog etc... */}
+                        </GlassmorphicCard>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="videos">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3
-                      className={`text-xl font-bold ${
-                        isDarkMode ? "text-white" : "text-black"
-                      }`}
-                    >
-                      My Videos
-                    </h3>
-                    <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Video
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                      <GlassmorphicCard key={i} className="p-4">
-                        <div className="aspect-video bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white" />
-                        </div>
-                        <h4
-                          className={`font-semibold mb-2 ${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
-                        >
-                          Stellar Journey {i}
-                        </h4>
-                        <div className="flex justify-between items-center mb-4">
-                          <span
-                            className={`text-sm ${
-                              isDarkMode ? "text-white/60" : "text-black/60"
+                  {dashboardData.loading ? (
+                    <div>Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {dashboardData.videos.map((video: any) => (
+                        <GlassmorphicCard key={video._id} className="p-4">
+                          {/* Render video info */}
+                          <h4
+                            className={`font-semibold mb-2 ${
+                              isDarkMode ? "text-white" : "text-black"
                             }`}
                           >
-                            {Math.floor(Math.random() * 1000)} views
-                          </span>
-                          <span
-                            className={`text-sm ${
-                              isDarkMode ? "text-white/60" : "text-black/60"
-                            }`}
-                          >
-                            {Math.floor(Math.random() * 100)} likes
-                          </span>
-                        </div>
-                        <Button variant="outline" size="sm" className="w-full">
-                          Manage
-                        </Button>
-                      </GlassmorphicCard>
-                    ))}
-                  </div>
+                            {video.title}
+                          </h4>
+                          {/* ...other video details... */}
+                        </GlassmorphicCard>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="tweets">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3
-                      className={`text-xl font-bold ${
-                        isDarkMode ? "text-white" : "text-black"
-                      }`}
-                    >
-                      My Tweets
-                    </h3>
-                    <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      New Tweet
-                    </Button>
-                  </div>
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <GlassmorphicCard key={i} className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <p
-                              className={`mb-2 ${
-                                isDarkMode ? "text-white/80" : "text-black/80"
-                              }`}
-                            >
-                              Exploring the cosmos tonight... The stars are
-                              telling amazing stories! 🌟✨ #StarGazing
-                              #CosmicJourney
-                            </p>
-                            <span
-                              className={`text-sm ${
-                                isDarkMode ? "text-white/40" : "text-black/40"
-                              }`}
-                            >
-                              {i}h ago
-                            </span>
-                          </div>
-                          <Button variant="ghost" size="sm">
-                            Manage
-                          </Button>
-                        </div>
-                        <div className="flex items-center space-x-6 text-sm">
-                          <span
-                            className={
-                              isDarkMode ? "text-white/60" : "text-black/60"
-                            }
+                  {dashboardData.loading ? (
+                    <div>Loading...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {dashboardData.tweets.map((tweet: any) => (
+                        <GlassmorphicCard key={tweet._id} className="p-6">
+                          {/* Render tweet info */}
+                          <p
+                            className={`mb-2 ${
+                              isDarkMode ? "text-white/80" : "text-black/80"
+                            }`}
                           >
-                            <Heart className="w-4 h-4 inline mr-1" />
-                            {Math.floor(Math.random() * 50)} likes
-                          </span>
-                          <span
-                            className={
-                              isDarkMode ? "text-white/60" : "text-black/60"
-                            }
-                          >
-                            <MessageCircle className="w-4 h-4 inline mr-1" />
-                            {Math.floor(Math.random() * 20)} replies
-                          </span>
-                        </div>
-                      </GlassmorphicCard>
-                    ))}
-                  </div>
+                            {tweet.content}
+                          </p>
+                          {/* ...other tweet details... */}
+                        </GlassmorphicCard>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="liked">
-                  <h3
-                    className={`text-xl font-bold mb-6 ${
-                      isDarkMode ? "text-white" : "text-black"
-                    }`}
-                  >
-                    Liked Videos
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <GlassmorphicCard key={i} className="p-4">
-                        <div className="aspect-video bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white" />
-                        </div>
-                        <h4
-                          className={`font-semibold mb-2 ${
-                            isDarkMode ? "text-white" : "text-black"
-                          }`}
-                        >
-                          Amazing Galaxy Tour {i}
-                        </h4>
-                        <p
-                          className={`text-sm ${
-                            isDarkMode ? "text-white/60" : "text-black/60"
-                          }`}
-                        >
-                          by @cosmicuser{i}
-                        </p>
-                      </GlassmorphicCard>
-                    ))}
-                  </div>
+                  {dashboardData.loading ? (
+                    <div>Loading...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {dashboardData.likedVideos.map((video: any) => (
+                        <GlassmorphicCard key={video._id} className="p-4">
+                          {/* Render liked video info */}
+                          <h4
+                            className={`font-semibold mb-2 ${
+                              isDarkMode ? "text-white" : "text-black"
+                            }`}
+                          >
+                            {video.title}
+                          </h4>
+                          {/* ...other liked video details... */}
+                        </GlassmorphicCard>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </TabsContent>
@@ -1406,14 +1452,55 @@ const Index = () => {
             <TabsContent value="profile" className="space-y-8">
               {/* Profile Header */}
               <GlassmorphicCard className="relative overflow-hidden">
-                <div className="h-48 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600"></div>
-                <div className="p-6">
-                  <div className="flex items-end space-x-6 -mt-16">
-                    <Avatar className="w-24 h-24 border-4 border-white">
+                {/* Cover Image as background */}
+                <div className="absolute inset-0 h-48 w-full overflow-hidden z-0">
+                  {user.coverImage ? (
+                    <img
+                      src={user.coverImage}
+                      alt="Cover"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="h-48 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600"></div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={coverInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleCoverChange}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 bottom-4 bg-black/60 text-white px-3 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => coverInputRef.current?.click()}
+                  >
+                    Change Cover
+                  </button>
+                  {/* Overlay for better text visibility */}
+                  <div className="absolute inset-0 bg-black/30"></div>
+                </div>
+                <div className="relative z-10 p-6 pt-32">
+                  <div className="flex items-end space-x-6">
+                    {/* Avatar */}
+                    <Avatar
+                      className="w-24 h-24 border-4 border-white cursor-pointer relative group"
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
                       <AvatarImage src={user.avatar} alt={user.fullName} />
                       <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-2xl">
                         SG
                       </AvatarFallback>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={avatarInputRef}
+                        style={{ display: "none" }}
+                        onChange={handleAvatarChange}
+                      />
+                      <span className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                        Change
+                      </span>
                     </Avatar>
                     <div className="pb-2">
                       <h1
@@ -1436,14 +1523,14 @@ const Index = () => {
                             isDarkMode ? "text-white/80" : "text-black/80"
                           }`}
                         >
-                          <strong>128</strong> Following
+                          <strong>{followStats.following}</strong> Following
                         </span>
                         <span
                           className={`text-sm ${
                             isDarkMode ? "text-white/80" : "text-black/80"
                           }`}
                         >
-                          <strong>1.2K</strong> Followers
+                          <strong>{followStats.followers}</strong> Followers
                         </span>
                       </div>
                     </div>
