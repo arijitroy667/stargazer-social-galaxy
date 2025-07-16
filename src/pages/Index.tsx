@@ -616,9 +616,7 @@ const Index = () => {
   };
 
   const getVideoUrl = (video: any) => {
-    if (video.videoUrl) return video.videoUrl;
-    if (video.videoFile) return `${apiUrl}/${video.videoFile}`;
-    return "";
+    return video.videoFile;
   };
 
   const handlePlaylistVideoClick = (video: any) => {
