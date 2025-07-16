@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -49,6 +50,192 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ConstellationBackground } from "@/components/ConstellationBackground";
 import { GlassmorphicCard } from "@/components/GlassmorphicCard";
 
+function VideoUploadForm({ isDarkMode }: { isDarkMode: boolean }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Access apiUrl and uploadVideo from parent scope if needed
+  const apiUrl = import.meta.env.VITE_BACKEND_API;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !description || !thumbnail || !videoFile) {
+      alert("Please fill all fields and select files.");
+      return;
+    }
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("thumbnail", thumbnail);
+    formData.append("videoFile", videoFile);
+
+    try {
+      await axios.post(`${apiUrl}/videos`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert("Video uploaded successfully!");
+      setTitle("");
+      setDescription("");
+      setThumbnail(null);
+      setVideoFile(null);
+      // Optionally, trigger a refresh of dashboard data here
+    } catch (err) {
+      alert("Failed to upload video.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label className={isDarkMode ? "text-white" : "text-black"}>
+          Title
+        </Label>
+        <Input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className={
+            isDarkMode
+              ? "bg-white/10 border-white/20 text-white"
+              : "bg-black/5 border-black/20 text-black"
+          }
+          placeholder="Enter video title"
+        />
+      </div>
+      <div>
+        <Label className={isDarkMode ? "text-white" : "text-black"}>
+          Description
+        </Label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className={
+            isDarkMode
+              ? "bg-white/10 border-white/20 text-white"
+              : "bg-black/5 border-black/20 text-black"
+          }
+          placeholder="Describe your video"
+        />
+      </div>
+      <div>
+        <Label className={isDarkMode ? "text-white" : "text-black"}>
+          Thumbnail
+        </Label>
+        <Input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setThumbnail(e.target.files?.[0] || null)}
+          className={
+            isDarkMode
+              ? "bg-white/10 border-white/20 text-white"
+              : "bg-black/5 border-black/20 text-black"
+          }
+        />
+      </div>
+      <div>
+        <Label className={isDarkMode ? "text-white" : "text-black"}>
+          Video File
+        </Label>
+        <Input
+          type="file"
+          accept="video/*"
+          onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+          className={
+            isDarkMode
+              ? "bg-white/10 border-white/20 text-white"
+              : "bg-black/5 border-black/20 text-black"
+          }
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+          disabled={loading}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {loading ? "Uploading..." : "Publish Video"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function VideoPlayerModal({
+  open,
+  onClose,
+  video,
+  isDarkMode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  video: any;
+  isDarkMode: boolean;
+}) {
+  if (!video) return null;
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        className={`max-w-2xl w-full p-0 overflow-hidden ${
+          isDarkMode ? "bg-black/90" : "bg-white"
+        }`}
+        style={{ borderRadius: 16 }}
+      >
+        <div className="relative">
+          <button
+            className="absolute top-2 right-2 z-10 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <video
+            src={video.videoUrl}
+            poster={video.thumbnail}
+            controls
+            autoPlay
+            className="w-full h-[360px] bg-black rounded-t-lg"
+            style={{ objectFit: "contain" }}
+          />
+        </div>
+        <div className="p-6">
+          <DialogHeader>
+            <DialogTitle
+              className={`text-2xl font-bold mb-2 ${
+                isDarkMode ? "text-white" : "text-black"
+              }`}
+            >
+              {video.title}
+            </DialogTitle>
+            <DialogDescription
+              className={`mb-2 ${
+                isDarkMode ? "text-white/70" : "text-black/70"
+              }`}
+            >
+              {video.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-4 text-sm">
+            <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
+              Uploaded by: {video.uploader?.username || "Unknown"}
+            </span>
+            <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
+              {video.views || 0} views
+            </span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const Index = () => {
   const fullNameRef = useRef(null);
   const emailRef = useRef(null);
@@ -62,7 +249,8 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("socials");
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
-
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -316,6 +504,16 @@ const Index = () => {
     }
   };
 
+  const handleVideoClick = (video: any) => {
+    setSelectedVideo(video);
+    setIsVideoModalOpen(true);
+  };
+
+  const handleVideoModalClose = () => {
+    setIsVideoModalOpen(false);
+    setSelectedVideo(null);
+  };
+
   const useFollowStats = (userId: string | number) => {
     const [stats, setStats] = useState({ followers: 0, following: 0 });
 
@@ -382,14 +580,24 @@ const Index = () => {
                 withCredentials: true,
               }),
             ]);
+          console.log(videosRes);
+
           setData({
-          playlists: Array.isArray(playlistsRes.data.data) ? playlistsRes.data.data : [],
-          videos: Array.isArray(videosRes.data.data) ? videosRes.data.data : [],
-          tweets: Array.isArray(tweetsRes.data.data) ? tweetsRes.data.data : [],
-          likedVideos: Array.isArray(likedVideosRes.data.data) ? likedVideosRes.data.data : [],
-          loading: false,
-          error: null,
-        });
+            playlists: Array.isArray(playlistsRes.data.data)
+              ? playlistsRes.data.data
+              : [],
+            videos: Array.isArray(videosRes.data.data.videos)
+              ? videosRes.data.data.videos
+              : [],
+            tweets: Array.isArray(tweetsRes.data.data)
+              ? tweetsRes.data.data
+              : [],
+            likedVideos: Array.isArray(likedVideosRes.data.data)
+              ? likedVideosRes.data.data
+              : [],
+            loading: false,
+            error: null,
+          });
         } catch (error) {
           setData((prev) => ({
             ...prev,
@@ -407,13 +615,9 @@ const Index = () => {
 
   // Separate creation functions
   const createPlaylist = async (playlistData: any) => {
-    return axios.post(`${apiUrl}/playlists`, playlistData, {
+    return axios.post(`${apiUrl}/playlist`, playlistData, {
       withCredentials: true,
     });
-  };
-
-  const uploadVideo = async (videoData: any) => {
-    return axios.post(`${apiUrl}/videos`, videoData, { withCredentials: true });
   };
 
   const createTweet = async (tweetData: any) => {
@@ -1353,6 +1557,32 @@ const Index = () => {
                 </TabsList>
 
                 <TabsContent value="playlists">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3
+                      className={`text-xl font-bold ${
+                        isDarkMode ? "text-white" : "text-black"
+                      }`}
+                    >
+                      My Playlists
+                    </h3>
+                    <Button
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      onClick={async () => {
+                        const name = prompt("Enter playlist name:");
+                        const description = prompt("Write your description");
+                        if (!name || !description) return;
+                        try {
+                          await createPlaylist({ name, description });
+                          // Optionally, refresh dashboard data here
+                        } catch (err) {
+                          alert("Failed to create playlist.");
+                        }
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Playlist
+                    </Button>
+                  </div>
                   {dashboardData.loading ? (
                     <div>Loading...</div>
                   ) : (
@@ -1382,28 +1612,93 @@ const Index = () => {
                 </TabsContent>
 
                 <TabsContent value="videos">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3
+                      className={`text-xl font-bold ${
+                        isDarkMode ? "text-white" : "text-black"
+                      }`}
+                    >
+                      My Videos
+                    </h3>
+                  </div>
+                  <GlassmorphicCard className="p-6 mb-8">
+                    <VideoUploadForm isDarkMode={isDarkMode} />
+                  </GlassmorphicCard>
                   {dashboardData.loading ? (
                     <div>Loading...</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {dashboardData.videos.map((video: any) => (
-                        <GlassmorphicCard key={video._id} className="p-4">
-                          {/* Render video info */}
-                          <h4
-                            className={`font-semibold mb-2 ${
-                              isDarkMode ? "text-white" : "text-black"
-                            }`}
-                          >
-                            {video.title}
-                          </h4>
-                          {/* ...other video details... */}
-                        </GlassmorphicCard>
+                        <div
+                          key={video._id}
+                          className="p-4 cursor-pointer hover:scale-[1.03] transition-transform"
+                          onClick={() => handleVideoClick(video)}
+                        >
+                          <GlassmorphicCard>
+                            <div className="aspect-video bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+                              {video.thumbnail ? (
+                                <img
+                                  src={video.thumbnail}
+                                  alt={video.title}
+                                  className="object-cover w-full h-full"
+                                />
+                              ) : (
+                                <Play className="w-12 h-12 text-white opacity-60" />
+                              )}
+                            </div>
+                            <h4
+                              className={`font-semibold mb-2 ${
+                                isDarkMode ? "text-white" : "text-black"
+                              }`}
+                            >
+                              {video.title}
+                            </h4>
+                            <p
+                              className={`text-sm mb-2 ${
+                                isDarkMode ? "text-white/60" : "text-black/60"
+                              }`}
+                            >
+                              {video.description}
+                            </p>
+                          </GlassmorphicCard>
+                        </div>
                       ))}
                     </div>
                   )}
+                  <VideoPlayerModal
+                    open={isVideoModalOpen}
+                    onClose={handleVideoModalClose}
+                    video={selectedVideo}
+                    isDarkMode={isDarkMode}
+                  />
                 </TabsContent>
 
                 <TabsContent value="tweets">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3
+                      className={`text-xl font-bold ${
+                        isDarkMode ? "text-white" : "text-black"
+                      }`}
+                    >
+                      My Tweets
+                    </h3>
+                    <Button
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      onClick={async () => {
+                        const content = prompt("What's on your mind?");
+                        if (!content) return;
+                        try {
+                          await createTweet({ content });
+                          // Optionally, refresh dashboard data here
+                        } catch (err) {
+                          alert("Failed to create tweet.");
+                        }
+                      }}
+                    >
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Create Tweet
+                    </Button>
+                  </div>
                   {dashboardData.loading ? (
                     <div>Loading...</div>
                   ) : (
