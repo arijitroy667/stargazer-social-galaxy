@@ -180,6 +180,7 @@ function VideoPlayerModal({
   isDarkMode: boolean;
 }) {
   if (!video) return null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
@@ -197,7 +198,7 @@ function VideoPlayerModal({
             <X className="w-5 h-5" />
           </button>
           <video
-            src={video.videoUrl}
+            src={video.videoFile}
             poster={video.thumbnail}
             controls
             autoPlay
@@ -251,6 +252,14 @@ const Index = () => {
   const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState({
+    playlists: [],
+    videos: [],
+    tweets: [],
+    likedVideos: [],
+    loading: true,
+    error: null,
+  });
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -548,76 +557,158 @@ const Index = () => {
 
   const followStats = useFollowStats(user?._id);
 
-  // Getter for dashboard tab data
-  const useDashboardData = (userId: string | number) => {
-    const [data, setData] = useState({
-      playlists: [],
-      videos: [],
-      tweets: [],
-      likedVideos: [],
-      loading: true,
-      error: null,
-    });
+  const fetchDashboardData = async (userId: string) => {
+    if (!userId) return;
 
-    useEffect(() => {
-      if (!userId) return;
-      setData((prev) => ({ ...prev, loading: true }));
+    setDashboardData((prev) => ({ ...prev, loading: true }));
 
-      const fetchAll = async () => {
-        try {
-          const [playlistsRes, videosRes, tweetsRes, likedVideosRes] =
-            await Promise.all([
-              axios.get(`${apiUrl}/playlist/user/${userId}`, {
-                withCredentials: true,
-              }),
-              axios.get(`${apiUrl}/videos`, {
-                withCredentials: true,
-              }),
-              axios.get(`${apiUrl}/tweets/user/${userId}`, {
-                withCredentials: true,
-              }),
-              axios.get(`${apiUrl}/likes/videos`, {
-                withCredentials: true,
-              }),
-            ]);
-          console.log(videosRes);
+    try {
+      const [playlistsRes, videosRes, tweetsRes, likedVideosRes] =
+        await Promise.all([
+          axios.get(`${apiUrl}/playlist/user/${userId}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/videos`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/tweets/user/${userId}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/likes/videos`, {
+            withCredentials: true,
+          }),
+        ]);
 
-          setData({
-            playlists: Array.isArray(playlistsRes.data.data)
-              ? playlistsRes.data.data
-              : [],
-            videos: Array.isArray(videosRes.data.data.videos)
-              ? videosRes.data.data.videos
-              : [],
-            tweets: Array.isArray(tweetsRes.data.data)
-              ? tweetsRes.data.data
-              : [],
-            likedVideos: Array.isArray(likedVideosRes.data.data)
-              ? likedVideosRes.data.data
-              : [],
-            loading: false,
-            error: null,
-          });
-        } catch (error) {
-          setData((prev) => ({
-            ...prev,
-            loading: false,
-            error: error,
-          }));
-        }
-      };
-
-      fetchAll();
-    }, [userId]);
-
-    return data;
+      setDashboardData({
+        playlists: Array.isArray(playlistsRes.data.data)
+          ? playlistsRes.data.data
+          : [],
+        videos: Array.isArray(videosRes.data.data.videos)
+          ? videosRes.data.data.videos
+          : [],
+        tweets: Array.isArray(tweetsRes.data.data) ? tweetsRes.data.data : [],
+        likedVideos: Array.isArray(likedVideosRes.data.data)
+          ? likedVideosRes.data.data
+          : [],
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      setDashboardData((prev) => ({
+        ...prev,
+        loading: false,
+        error: error,
+      }));
+    }
   };
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchDashboardData(user._id);
+    }
+  }, [user?._id]);
 
   // Separate creation functions
   const createPlaylist = async (playlistData: any) => {
     return axios.post(`${apiUrl}/playlist`, playlistData, {
       withCredentials: true,
     });
+  };
+
+  const getVideoUrl = (video: any) => {
+    if (video.videoUrl) return video.videoUrl;
+    if (video.videoFile) return `${apiUrl}/${video.videoFile}`;
+    return "";
+  };
+
+  const handlePlaylistVideoClick = (video: any) => {
+    setSelectedVideo({
+      ...video,
+      videoUrl: getVideoUrl(video),
+    });
+    setIsVideoModalOpen(true);
+  };
+
+  const handleCreatePlaylist = async () => {
+    const name = prompt("Enter playlist name:");
+    const description = prompt("Write your description");
+    if (!name || !description) return;
+
+    try {
+      await createPlaylist({ name, description });
+      await fetchDashboardData(user._id); // Refresh all data
+    } catch (err) {
+      alert("Failed to create playlist.");
+    }
+  };
+
+  const refreshPlaylist = async (playlistId: string) => {
+    try {
+      const updatedPlaylist = await fetchPlaylistVideos(playlistId);
+      setDashboardData((prev) => ({
+        ...prev,
+        playlists: prev.playlists.map((p) =>
+          p._id === playlistId ? updatedPlaylist : p
+        ),
+      }));
+    } catch (error) {
+      console.error("Error refreshing playlist:", error);
+    }
+  };
+
+  const handleAddVideo = async (videoId: string, playlistId: string) => {
+    try {
+      await axios.patch(
+        `${apiUrl}/playlist/add/${videoId}/${playlistId}`,
+        {},
+        { withCredentials: true }
+      );
+      await refreshPlaylist(playlistId);
+    } catch (error) {
+      alert("Failed to add video to playlist");
+    }
+  };
+
+  const handleRemoveVideo = async (videoId: string, playlistId: string) => {
+    try {
+      await axios.patch(
+        `${apiUrl}/playlist/remove/${videoId}/${playlistId}`,
+        {},
+        { withCredentials: true }
+      );
+      await refreshPlaylist(playlistId);
+    } catch (error) {
+      alert("Failed to remove video from playlist");
+    }
+  };
+
+  const handleDeletePlaylist = async (playlistId: string) => {
+    if (!confirm("Are you sure you want to delete this playlist?")) return;
+
+    try {
+      await axios.delete(`${apiUrl}/playlist/${playlistId}`, {
+        withCredentials: true,
+      });
+      setDashboardData((prev) => ({
+        ...prev,
+        playlists: prev.playlists.filter((p) => p._id !== playlistId),
+      }));
+    } catch (error) {
+      alert("Failed to delete playlist");
+    }
+  };
+
+  const fetchPlaylistVideos = async (playlistId: string) => {
+    try {
+      const response = await axios.get(`${apiUrl}/playlist/${playlistId}`, {
+        withCredentials: true,
+      });
+      console.log(response);
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching playlist videos:", error);
+      return [];
+    }
   };
 
   const createTweet = async (tweetData: any) => {
@@ -627,8 +718,6 @@ const Index = () => {
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
-
-  const dashboardData = useDashboardData(user?._id);
 
   if (currentView === "landing") {
     return (
@@ -1573,7 +1662,8 @@ const Index = () => {
                         if (!name || !description) return;
                         try {
                           await createPlaylist({ name, description });
-                          // Optionally, refresh dashboard data here
+                          // Refresh playlists immediately
+                          await fetchDashboardData(user?._id);
                         } catch (err) {
                           alert("Failed to create playlist.");
                         }
@@ -1583,32 +1673,271 @@ const Index = () => {
                       Create Playlist
                     </Button>
                   </div>
+
                   {dashboardData.loading ? (
                     <div>Loading...</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {dashboardData.playlists.map((playlist: any) => (
                         <GlassmorphicCard key={playlist._id} className="p-4">
-                          {/* Render playlist info */}
-                          <h4
-                            className={`font-semibold mb-2 ${
-                              isDarkMode ? "text-white" : "text-black"
-                            }`}
-                          >
-                            {playlist.name}
-                          </h4>
-                          <p
-                            className={`text-sm mb-4 ${
-                              isDarkMode ? "text-white/60" : "text-black/60"
-                            }`}
-                          >
-                            {playlist.videos?.length || 0} videos
-                          </p>
-                          {/* ...manage dialog etc... */}
+                          {/* Playlist Header */}
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h4
+                                className={`font-semibold mb-2 ${
+                                  isDarkMode ? "text-white" : "text-black"
+                                }`}
+                              >
+                                {playlist.name}
+                              </h4>
+                              <p
+                                className={`text-sm ${
+                                  isDarkMode ? "text-white/60" : "text-black/60"
+                                }`}
+                              >
+                                {Array.isArray(playlist.videos)
+                                  ? playlist.videos.length
+                                  : 0}{" "}
+                                videos
+                              </p>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeletePlaylist(playlist._id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+
+                          {/* Videos List */}
+                          {Array.isArray(playlist.videos) &&
+                            playlist.videos.length > 0 && (
+                              <div className="space-y-2 mb-4">
+                                <Label
+                                  className={`block mb-1 ${
+                                    isDarkMode ? "text-white" : "text-black"
+                                  }`}
+                                >
+                                  Videos in Playlist
+                                </Label>
+                                <div className="max-h-48 overflow-y-auto space-y-2">
+                                  {playlist.videos.map((video: any) => (
+                                    <div
+                                      key={video._id}
+                                      className="flex items-center justify-between bg-black/10 rounded px-2 py-1 cursor-pointer hover:bg-black/20"
+                                      onClick={() =>
+                                        handlePlaylistVideoClick(video)
+                                      }
+                                    >
+                                      <div className="flex items-center space-x-2">
+                                        <Play className="w-4 h-4" />
+                                        <span
+                                          className={
+                                            isDarkMode
+                                              ? "text-white"
+                                              : "text-black"
+                                          }
+                                        >
+                                          {video.title}
+                                        </span>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          await handleRemoveVideo(
+                                            video._id,
+                                            playlist._id
+                                          );
+                                        }}
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Manage Playlist Dialog */}
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                Manage Playlist
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent
+                              className={`${
+                                isDarkMode ? "bg-black/80" : "bg-white/80"
+                              } backdrop-blur-lg`}
+                            >
+                              <DialogHeader>
+                                <DialogTitle
+                                  className={
+                                    isDarkMode ? "text-white" : "text-black"
+                                  }
+                                >
+                                  Manage Playlist
+                                </DialogTitle>
+                                <DialogDescription
+                                  className={
+                                    isDarkMode
+                                      ? "text-white/70"
+                                      : "text-black/70"
+                                  }
+                                >
+                                  Update playlist details and manage videos
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              {/* Update Playlist Form */}
+                              <form
+                                onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  const form = e.target as HTMLFormElement;
+                                  const name = (
+                                    form.querySelector(
+                                      "[name='name']"
+                                    ) as HTMLInputElement
+                                  )?.value;
+                                  const description = (
+                                    form.querySelector(
+                                      "[name='description']"
+                                    ) as HTMLTextAreaElement
+                                  )?.value;
+
+                                  try {
+                                    await axios.patch(
+                                      `${apiUrl}/playlist/${playlist._id}`,
+                                      { name, description },
+                                      { withCredentials: true }
+                                    );
+                                    await fetchDashboardData(user._id);
+                                  } catch (err) {
+                                    alert("Failed to update playlist.");
+                                  }
+                                }}
+                                className="space-y-4"
+                              >
+                                <div>
+                                  <Label
+                                    className={
+                                      isDarkMode ? "text-white" : "text-black"
+                                    }
+                                  >
+                                    Name
+                                  </Label>
+                                  <Input
+                                    name="name"
+                                    defaultValue={playlist.name}
+                                    className={
+                                      isDarkMode
+                                        ? "bg-white/10 text-white"
+                                        : "bg-black/5"
+                                    }
+                                  />
+                                </div>
+
+                                <div>
+                                  <Label
+                                    className={
+                                      isDarkMode ? "text-white" : "text-black"
+                                    }
+                                  >
+                                    Description
+                                  </Label>
+                                  <Textarea
+                                    name="description"
+                                    defaultValue={playlist.description}
+                                    className={
+                                      isDarkMode
+                                        ? "bg-white/10 text-white"
+                                        : "bg-black/5"
+                                    }
+                                  />
+                                </div>
+
+                                <Button
+                                  type="submit"
+                                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
+                                >
+                                  Save Changes
+                                </Button>
+                              </form>
+
+                              {/* Add Videos Section */}
+                              <div className="mt-6">
+                                <Label
+                                  className={
+                                    isDarkMode ? "text-white" : "text-black"
+                                  }
+                                >
+                                  Add Videos
+                                </Label>
+                                <div className="max-h-48 overflow-y-auto mt-2 space-y-2">
+                                  {dashboardData.videos
+                                    .filter(
+                                      (video) =>
+                                        !playlist.videos?.some(
+                                          (v) => v._id === video._id
+                                        )
+                                    )
+                                    .map((video: any) => (
+                                      <div
+                                        key={video._id}
+                                        className="flex items-center justify-between p-2 hover:bg-white/10 rounded"
+                                      >
+                                        <span
+                                          className={
+                                            isDarkMode
+                                              ? "text-white"
+                                              : "text-black"
+                                          }
+                                        >
+                                          {video.title}
+                                        </span>
+                                        <Button
+                                          size="sm"
+                                          onClick={() =>
+                                            handleAddVideo(
+                                              video._id,
+                                              playlist._id
+                                            )
+                                          }
+                                        >
+                                          Add
+                                        </Button>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </GlassmorphicCard>
                       ))}
                     </div>
                   )}
+
+                  {/* Video Player Modal */}
+                  <VideoPlayerModal
+                    open={isVideoModalOpen}
+                    onClose={handleVideoModalClose}
+                    video={
+                      selectedVideo
+                        ? {
+                            ...selectedVideo,
+                            videoUrl: getVideoUrl(selectedVideo),
+                          }
+                        : null
+                    }
+                    isDarkMode={isDarkMode}
+                  />
                 </TabsContent>
 
                 <TabsContent value="videos">
