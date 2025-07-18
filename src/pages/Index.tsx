@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext } from "react";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,15 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ConstellationBackground } from "@/components/ConstellationBackground";
 import { GlassmorphicCard } from "@/components/GlassmorphicCard";
 
-function VideoUploadForm({ isDarkMode }: { isDarkMode: boolean }) {
+function VideoUploadForm({
+  isDarkMode,
+  fetchDashboardData,
+  user,
+}: {
+  isDarkMode: boolean;
+  fetchDashboardData: Function;
+  user: any;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
@@ -59,7 +67,6 @@ function VideoUploadForm({ isDarkMode }: { isDarkMode: boolean }) {
 
   // Access apiUrl and uploadVideo from parent scope if needed
   const apiUrl = import.meta.env.VITE_BACKEND_API;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description || !thumbnail || !videoFile) {
@@ -84,6 +91,9 @@ function VideoUploadForm({ isDarkMode }: { isDarkMode: boolean }) {
       setThumbnail(null);
       setVideoFile(null);
       // Optionally, trigger a refresh of dashboard data here
+      if (user?._id && fetchDashboardData) {
+        await fetchDashboardData(user._id);
+      }
     } catch (err) {
       alert("Failed to upload video.");
     } finally {
@@ -252,6 +262,8 @@ const Index = () => {
   const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
+  const [likedTweetIds, setLikedTweetIds] = useState<Set<string>>(new Set());
   const [dashboardData, setDashboardData] = useState({
     playlists: [],
     videos: [],
@@ -268,6 +280,79 @@ const Index = () => {
       console.log("User updated:", user);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (dashboardData.likedVideos && Array.isArray(dashboardData.likedVideos)) {
+      setLikedVideoIds(
+        new Set(dashboardData.likedVideos.map((v: any) => v._id))
+      );
+    }
+  }, [dashboardData.likedVideos]);
+
+  useEffect(() => {
+    const fetchAndPopulatePlaylists = async () => {
+      if (!user?._id) return;
+
+      // Fetch dashboard data (playlists, videos, etc.)
+      const [playlistsRes, videosRes, tweetsRes, likedVideosRes] =
+        await Promise.all([
+          axios.get(`${apiUrl}/playlist/user/${user._id}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/videos`, { withCredentials: true }),
+          axios.get(`${apiUrl}/tweets/user/${user._id}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/likes/videos`, { withCredentials: true }),
+        ]);
+
+      // For each playlist, fetch full video objects
+      const playlistsRaw = Array.isArray(playlistsRes.data.data)
+        ? playlistsRes.data.data
+        : [];
+      const playlistsWithVideos = await Promise.all(
+        playlistsRaw.map(async (playlist: any) => {
+          const videoIds = playlist.videos;
+          if (!videoIds || videoIds.length === 0)
+            return { ...playlist, videos: [] };
+          const videoObjects = await Promise.all(
+            videoIds.map((id: string) =>
+              axios
+                .get(`${apiUrl}/videos/${id}`, { withCredentials: true })
+                .then((res) => res.data.data)
+                .catch(() => null)
+            )
+          );
+          return { ...playlist, videos: videoObjects.filter(Boolean) };
+        })
+      );
+
+      setDashboardData({
+        playlists: playlistsWithVideos,
+        videos: Array.isArray(videosRes.data.data.videos)
+          ? videosRes.data.data.videos
+          : [],
+        tweets: Array.isArray(tweetsRes.data.data) ? tweetsRes.data.data : [],
+        likedVideos: Array.isArray(likedVideosRes.data.data)
+          ? likedVideosRes.data.data
+          : [],
+        loading: false,
+        error: null,
+      });
+    };
+
+    if (user?._id) {
+      fetchAndPopulatePlaylists();
+    }
+
+    fetchAndSetTweets();
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchDashboardData(user._id);
+    }
+  }, [user?._id]);
 
   const handleLike = (postId: number) => {
     const newLikedPosts = new Set(likedPosts);
@@ -559,30 +644,48 @@ const Index = () => {
 
   const fetchDashboardData = async (userId: string) => {
     if (!userId) return;
-
     setDashboardData((prev) => ({ ...prev, loading: true }));
 
     try {
-      const [playlistsRes, videosRes, tweetsRes, likedVideosRes] =
-        await Promise.all([
-          axios.get(`${apiUrl}/playlist/user/${userId}`, {
-            withCredentials: true,
-          }),
-          axios.get(`${apiUrl}/videos`, {
-            withCredentials: true,
-          }),
-          axios.get(`${apiUrl}/tweets/user/${userId}`, {
-            withCredentials: true,
-          }),
-          axios.get(`${apiUrl}/likes/videos`, {
-            withCredentials: true,
-          }),
-        ]);
+      const [
+        playlistsRes,
+        videosRes,
+        tweetsRes,
+        likedVideosRes,
+        likedTweetsRes,
+      ] = await Promise.all([
+        axios.get(`${apiUrl}/playlist/user/${userId}`, {
+          withCredentials: true,
+        }),
+        axios.get(`${apiUrl}/videos`, { withCredentials: true }),
+        axios.get(`${apiUrl}/tweets/user/${userId}`, { withCredentials: true }),
+        axios.get(`${apiUrl}/likes/videos`, { withCredentials: true }),
+        axios.get(`${apiUrl}/likes/tweets`, { withCredentials: true }),
+      ]);
+
+      // Process playlists and fetch video details
+      const playlistsRaw = Array.isArray(playlistsRes.data.data)
+        ? playlistsRes.data.data
+        : [];
+      const playlistsWithVideos = await Promise.all(
+        playlistsRaw.map(async (playlist: any) => {
+          const videoIds = playlist.videos;
+          if (!videoIds || videoIds.length === 0)
+            return { ...playlist, videos: [] };
+          const videoObjects = await Promise.all(
+            videoIds.map((id: string) =>
+              axios
+                .get(`${apiUrl}/videos/${id}`, { withCredentials: true })
+                .then((res) => res.data.data)
+                .catch(() => null)
+            )
+          );
+          return { ...playlist, videos: videoObjects.filter(Boolean) };
+        })
+      );
 
       setDashboardData({
-        playlists: Array.isArray(playlistsRes.data.data)
-          ? playlistsRes.data.data
-          : [],
+        playlists: playlistsWithVideos,
         videos: Array.isArray(videosRes.data.data.videos)
           ? videosRes.data.data.videos
           : [],
@@ -593,20 +696,46 @@ const Index = () => {
         loading: false,
         error: null,
       });
+
+      // Update likedTweetIds here
+      setLikedVideoIds(
+        new Set(likedVideosRes.data.data.map((v: any) => v._id))
+      );
+      setLikedTweetIds(
+        new Set(likedTweetsRes.data.data.map((t: any) => t._id))
+      );
     } catch (error) {
-      setDashboardData((prev) => ({
-        ...prev,
-        loading: false,
-        error: error,
-      }));
+      setDashboardData((prev) => ({ ...prev, loading: false, error: error }));
     }
   };
 
-  useEffect(() => {
-    if (user?._id) {
-      fetchDashboardData(user._id);
+  const fetchAndSetTweets = async () => {
+    if (!user?._id) return;
+    setDashboardData((prev) => ({ ...prev, loading: true }));
+    try {
+      const [tweetsRes, likedTweetsRes] = await Promise.all([
+        axios.get(`${apiUrl}/tweets/user/${user._id}`, {
+          withCredentials: true,
+        }),
+        axios.get(`${apiUrl}/likes/tweets`, { withCredentials: true }),
+      ]);
+      setDashboardData((prev) => ({
+        ...prev,
+        tweets: Array.isArray(tweetsRes.data.data) ? tweetsRes.data.data : [],
+        loading: false,
+      }));
+      setLikedTweetIds(
+        new Set(
+          Array.isArray(likedTweetsRes.data.data)
+            ? likedTweetsRes.data.data.map((t: any) => t._id)
+            : []
+        )
+      );
+    } catch (error) {
+      setDashboardData((prev) => ({ ...prev, loading: false }));
+      console.log("Error fetching tweets:", error);
     }
-  }, [user?._id]);
+  };
 
   // Separate creation functions
   const createPlaylist = async (playlistData: any) => {
@@ -625,19 +754,6 @@ const Index = () => {
       videoUrl: getVideoUrl(video),
     });
     setIsVideoModalOpen(true);
-  };
-
-  const handleCreatePlaylist = async () => {
-    const name = prompt("Enter playlist name:");
-    const description = prompt("Write your description");
-    if (!name || !description) return;
-
-    try {
-      await createPlaylist({ name, description });
-      await fetchDashboardData(user._id); // Refresh all data
-    } catch (err) {
-      alert("Failed to create playlist.");
-    }
   };
 
   const refreshPlaylist = async (playlistId: string) => {
@@ -701,16 +817,161 @@ const Index = () => {
       const response = await axios.get(`${apiUrl}/playlist/${playlistId}`, {
         withCredentials: true,
       });
-      console.log(response);
-      return response.data.data;
+      // response.data.data.videos is an array of video IDs
+      const videoIds = response.data.data.videos;
+      if (!videoIds || videoIds.length === 0)
+        return { ...response.data.data, videos: [] };
+
+      // Fetch full video objects for each video ID
+      const videoObjects = await Promise.all(
+        videoIds.map((id: string) =>
+          axios
+            .get(`${apiUrl}/videos/${id}`, { withCredentials: true })
+            .then((res) => res.data.data)
+            .catch(() => null)
+        )
+      );
+
+      // Filter out any failed fetches (nulls)
+      const validVideos = videoObjects.filter(Boolean);
+
+      // Return the playlist object with full video objects
+      return { ...response.data.data, videos: validVideos };
     } catch (error) {
       console.error("Error fetching playlist videos:", error);
-      return [];
+      return { videos: [] };
     }
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    if (!confirm("Are you sure you want to delete this video?")) return;
+    try {
+      // 1. Delete the video
+      await axios.delete(`${apiUrl}/videos/${videoId}`, {
+        withCredentials: true,
+      });
+
+      // 2. Remove the video from all playlists
+      const playlistIds = dashboardData.playlists
+        .filter(
+          (playlist: any) =>
+            Array.isArray(playlist.videos) &&
+            playlist.videos.some((v: any) => v._id === videoId)
+        )
+        .map((playlist: any) => playlist._id);
+
+      await Promise.all(
+        playlistIds.map((playlistId: string) =>
+          axios.patch(
+            `${apiUrl}/playlist/remove/${videoId}/${playlistId}`,
+            {},
+            { withCredentials: true }
+          )
+        )
+      );
+
+      // 3. Refresh dashboard data
+      await fetchDashboardData(user._id);
+    } catch (error) {
+      alert("Failed to delete video.");
+    }
+  };
+
+  const handleLikeVideo = async (videoId: string) => {
+    try {
+      await axios.post(
+        `${apiUrl}/likes/toggle/v/${videoId}`,
+        {},
+        { withCredentials: true }
+      );
+      await fetchDashboardData(user._id); // Refresh videos after like
+      // The useEffect above will update likedVideoIds
+    } catch (error) {
+      alert("Failed to like video.");
+    }
+  };
+
+  const handleUpdateThumbnail = async (videoId: string) => {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const title = prompt("Enter a title for the thumbnail:");
+      const description = prompt("Enter a description for the thumbnail:");
+      const formData = new FormData();
+      formData.append("thumbnail", file);
+      formData.append("title", title);
+      formData.append("description", description);
+      try {
+        await axios.patch(`${apiUrl}/videos/${videoId}`, formData, {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        await fetchDashboardData(user._id); // Refresh videos after update
+      } catch (error) {
+        alert("Failed to update thumbnail.");
+      }
+    };
+    fileInput.click();
   };
 
   const createTweet = async (tweetData: any) => {
     return axios.post(`${apiUrl}/tweets`, tweetData, { withCredentials: true });
+  };
+
+  const handleDeleteTweet = async (tweetId: string) => {
+    if (!confirm("Are you sure you want to delete this tweet?")) return;
+    try {
+      await axios.delete(`${apiUrl}/tweets/${tweetId}`, {
+        withCredentials: true,
+      });
+      await fetchAndSetTweets();
+    } catch (error) {
+      alert("Failed to delete tweet.");
+    }
+  };
+
+  const handleLikeTweet = async (tweetId: string) => {
+    try {
+      await axios.post(
+        `${apiUrl}/likes/toggle/t/${tweetId}`,
+        {},
+        { withCredentials: true }
+      );
+
+      // Update like status immediately for better UX
+      setLikedTweetIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(tweetId)) {
+          newSet.delete(tweetId);
+        } else {
+          newSet.add(tweetId);
+        }
+        return newSet;
+      });
+
+      // Then refresh the data from server
+      await fetchDashboardData(user._id);
+    } catch (error) {
+      alert("Failed to like tweet.");
+    }
+  };
+
+  const handleUpdateTweet = async (tweetId: string, oldContent: string) => {
+    const newContent = prompt("Update your tweet:", oldContent);
+    if (!newContent || newContent === oldContent) return;
+    try {
+      await axios.patch(
+        `${apiUrl}/tweets/${tweetId}`,
+        { content: newContent },
+        { withCredentials: true }
+      );
+      await fetchAndSetTweets(); // Refresh tweets after update
+    } catch (error) {
+      alert("Failed to update tweet.");
+    }
   };
 
   const toggleTheme = () => {
@@ -1729,7 +1990,7 @@ const Index = () => {
                                       }
                                     >
                                       <div className="flex items-center space-x-2">
-                                        <Play className="w-4 h-4" />
+                                        <Play className="w-4 h-4 " />
                                         <span
                                           className={
                                             isDarkMode
@@ -1765,7 +2026,11 @@ const Index = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full"
+                                className={`w-full ${
+                                  isDarkMode
+                                    ? "text-white border-white/30 hover:bg-white/10"
+                                    : "text-black border-black/30 hover:bg-black/10"
+                                }`}
                               >
                                 Manage Playlist
                               </Button>
@@ -1949,7 +2214,11 @@ const Index = () => {
                     </h3>
                   </div>
                   <GlassmorphicCard className="p-6 mb-8">
-                    <VideoUploadForm isDarkMode={isDarkMode} />
+                    <VideoUploadForm
+                      isDarkMode={isDarkMode}
+                      fetchDashboardData={fetchDashboardData}
+                      user={user}
+                    />
                   </GlassmorphicCard>
                   {dashboardData.loading ? (
                     <div>Loading...</div>
@@ -1958,10 +2227,11 @@ const Index = () => {
                       {dashboardData.videos.map((video: any) => (
                         <div
                           key={video._id}
-                          className="p-4 cursor-pointer hover:scale-[1.03] transition-transform"
+                          className="p-4 cursor-pointer hover:scale-[1.03] transition-transform group"
                           onClick={() => handleVideoClick(video)}
                         >
                           <GlassmorphicCard>
+                            {/* Thumbnail */}
                             <div className="aspect-video bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
                               {video.thumbnail ? (
                                 <img
@@ -1973,6 +2243,7 @@ const Index = () => {
                                 <Play className="w-12 h-12 text-white opacity-60" />
                               )}
                             </div>
+                            {/* Title */}
                             <h4
                               className={`font-semibold mb-2 ${
                                 isDarkMode ? "text-white" : "text-black"
@@ -1980,6 +2251,7 @@ const Index = () => {
                             >
                               {video.title}
                             </h4>
+                            {/* Description */}
                             <p
                               className={`text-sm mb-2 ${
                                 isDarkMode ? "text-white/60" : "text-black/60"
@@ -1987,6 +2259,75 @@ const Index = () => {
                             >
                               {video.description}
                             </p>
+                            {/* Actions */}
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={
+                                    isDarkMode
+                                      ? "text-red-500 hover:text-red-600"
+                                      : "text-red-600 hover:text-red-700"
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteVideo(video._id);
+                                  }}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Delete
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={
+                                    isDarkMode
+                                      ? "text-purple-400 hover:text-purple-600"
+                                      : "text-purple-600 hover:text-purple-800"
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateThumbnail(video._id);
+                                  }}
+                                >
+                                  <Edit3 className="w-4 h-4 mr-1" />
+                                  Update Thumbnail
+                                </Button>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={
+                                  likedVideoIds.has(video._id)
+                                    ? isDarkMode
+                                      ? "text-pink-400 hover:text-pink-600"
+                                      : "text-pink-600 hover:text-pink-800"
+                                    : isDarkMode
+                                    ? "text-white/60 hover:text-pink-400"
+                                    : "text-black/60 hover:text-pink-600"
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleLikeVideo(video._id);
+                                }}
+                              >
+                                <Heart
+                                  className={`w-4 h-4 mr-1 ${
+                                    likedVideoIds.has(video._id)
+                                      ? "fill-current"
+                                      : ""
+                                  }`}
+                                  fill={
+                                    likedVideoIds.has(video._id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                  stroke="currentColor"
+                                />
+                                Like
+                              </Button>
+                            </div>
                           </GlassmorphicCard>
                         </div>
                       ))}
@@ -2016,7 +2357,7 @@ const Index = () => {
                         if (!content) return;
                         try {
                           await createTweet({ content });
-                          // Optionally, refresh dashboard data here
+                          await fetchAndSetTweets();
                         } catch (err) {
                           alert("Failed to create tweet.");
                         }
@@ -2032,7 +2373,6 @@ const Index = () => {
                     <div className="space-y-4">
                       {dashboardData.tweets.map((tweet: any) => (
                         <GlassmorphicCard key={tweet._id} className="p-6">
-                          {/* Render tweet info */}
                           <p
                             className={`mb-2 ${
                               isDarkMode ? "text-white/80" : "text-black/80"
@@ -2040,7 +2380,65 @@ const Index = () => {
                           >
                             {tweet.content}
                           </p>
-                          {/* ...other tweet details... */}
+                          <div className="flex items-center justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={
+                                likedTweetIds.has(tweet._id)
+                                  ? isDarkMode
+                                    ? "text-pink-400 hover:text-pink-600"
+                                    : "text-pink-600 hover:text-pink-800"
+                                  : isDarkMode
+                                  ? "text-white/60 hover:text-pink-400"
+                                  : "text-black/60 hover:text-pink-600"
+                              }
+                              onClick={() => handleLikeTweet(tweet._id)}
+                            >
+                              <Heart
+                                className={`w-4 h-4 mr-1 ${
+                                  likedTweetIds.has(tweet._id)
+                                    ? "fill-current"
+                                    : ""
+                                }`}
+                                fill={
+                                  likedTweetIds.has(tweet._id)
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                                stroke="currentColor"
+                              />
+                              Like
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={
+                                isDarkMode
+                                  ? "text-red-500 hover:text-red-600"
+                                  : "text-red-600 hover:text-red-700"
+                              }
+                              onClick={() => handleDeleteTweet(tweet._id)}
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={
+                                isDarkMode
+                                  ? "text-purple-400 hover:text-purple-600"
+                                  : "text-purple-600 hover:text-purple-800"
+                              }
+                              onClick={() =>
+                                handleUpdateTweet(tweet._id, tweet.content)
+                              }
+                            >
+                              <Edit3 className="w-4 h-4 mr-1" />
+                              Update
+                            </Button>
+                          </div>
                         </GlassmorphicCard>
                       ))}
                     </div>
