@@ -1,6 +1,7 @@
 import React, { createContext } from "react";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { Check, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -264,6 +265,8 @@ const Index = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
   const [likedTweetIds, setLikedTweetIds] = useState<Set<string>>(new Set());
+  const [communityUsers, setCommunityUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     playlists: [],
     videos: [],
@@ -353,6 +356,10 @@ const Index = () => {
       fetchDashboardData(user._id);
     }
   }, [user?._id]);
+
+  useEffect(() => {
+    fetchCommunityUsers();
+  }, []);
 
   const handleLike = (postId: number) => {
     const newLikedPosts = new Set(likedPosts);
@@ -616,7 +623,7 @@ const Index = () => {
 
       const fetchStats = async () => {
         try {
-          const [followersRes, followingRes] = await Promise.all([
+          const [followingRes, followersRes] = await Promise.all([
             axios.get(`${apiUrl}/subscriptions/u/${userId}`, {
               withCredentials: true,
             }),
@@ -624,9 +631,19 @@ const Index = () => {
               withCredentials: true,
             }),
           ]);
+
+          // Get lengths from response arrays
+          const followersCount = Array.isArray(followersRes.data.data)
+            ? followersRes.data.data.length
+            : 0;
+
+          const followingCount = Array.isArray(followingRes.data.data)
+            ? followingRes.data.data.length
+            : 0;
+
           setStats({
-            followers: followersRes.data.count || 0,
-            following: followingRes.data.count || 0,
+            followers: followersCount,
+            following: followingCount,
           });
         } catch (error) {
           setStats({ followers: 0, following: 0 });
@@ -972,6 +989,42 @@ const Index = () => {
     } catch (error) {
       alert("Failed to update tweet.");
     }
+  };
+
+  const fetchCommunityUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await axios.get(`${apiUrl}/users/allUsers`, {
+        withCredentials: true,
+      });
+      setCommunityUsers(
+        Array.isArray(response.data.data) ? response.data.data : []
+      );
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleFollowUser = async (userId: string) => {
+    try {
+      await axios.post(
+        `${apiUrl}/subscriptions/c/${userId}`,
+        {},
+        { withCredentials: true }
+      );
+      // Update the users list to reflect new follow status
+      await fetchCommunityUsers();
+    } catch (error) {
+      console.error("Failed to follow user:", error);
+      alert("Failed to update follow status");
+    }
+  };
+
+  // Add this to check if you're following a user
+  const isFollowingUser = (user: any) => {
+    return user.followers?.includes(user?._id);
   };
 
   const toggleTheme = () => {
@@ -1435,64 +1488,106 @@ const Index = () => {
                 >
                   Stellar Community
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <GlassmorphicCard key={i} className="p-6">
-                      <div className="flex items-center space-x-4 mb-4">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                            U{i}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3
-                            className={`font-semibold ${
-                              isDarkMode ? "text-white" : "text-black"
+                {loadingUsers ? (
+                  <div>Loading users...</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {communityUsers.map((communityUser: any) => (
+                      <GlassmorphicCard key={communityUser._id} className="p-6">
+                        <div className="flex items-center space-x-4 mb-4">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage
+                              src={communityUser.avatar}
+                              alt={communityUser.fullName}
+                            />
+                            <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                              {communityUser.fullName?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3
+                              className={`font-semibold ${
+                                isDarkMode ? "text-white" : "text-black"
+                              }`}
+                            >
+                              {communityUser.fullName}
+                            </h3>
+                            <p
+                              className={`text-sm ${
+                                isDarkMode ? "text-white/60" : "text-black/60"
+                              }`}
+                            >
+                              @{communityUser.username}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex space-x-4 text-sm">
+                            <span
+                              className={
+                                isDarkMode ? "text-white/80" : "text-black/80"
+                              }
+                            >
+                              {Array.isArray(communityUser.followers)
+                                ? communityUser.followers.length
+                                : 0}{" "}
+                              followers
+                            </span>
+                            <span
+                              className={
+                                isDarkMode ? "text-white/80" : "text-black/80"
+                              }
+                            >
+                              {Array.isArray(communityUser.following)
+                                ? communityUser.following.length
+                                : 0}{" "}
+                              following
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleFollowUser(communityUser._id)}
+                            className={`flex-1 transition-all duration-300 ${
+                              isFollowingUser(communityUser)
+                                ? "bg-green-500 hover:bg-green-600 text-white"
+                                : "premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                             }`}
                           >
-                            Cosmic User {i}
-                          </h3>
-                          <p
-                            className={`text-sm ${
-                              isDarkMode ? "text-white/60" : "text-black/60"
+                            {isFollowingUser(communityUser) ? (
+                              <>
+                                <Check className="w-4 h-4 mr-2" />
+                                Following
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Follow
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`flex-1 ${
+                              isDarkMode
+                                ? "text-white border-white/30 hover:bg-white/10"
+                                : "text-black border-black/30 hover:bg-black/10"
                             }`}
+                            onClick={() => {
+                              // You can use Next.js router or your preferred routing method
+                              window.location.href = `/profile/${communityUser._id}`;
+                            }}
                           >
-                            @cosmicuser{i}
-                          </p>
+                            <User className="w-4 h-4 mr-2" />
+                            View Profile
+                          </Button>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex space-x-4 text-sm">
-                          <span
-                            className={
-                              isDarkMode ? "text-white/80" : "text-black/80"
-                            }
-                          >
-                            {Math.floor(Math.random() * 1000)} followers
-                          </span>
-                          <span
-                            className={
-                              isDarkMode ? "text-white/80" : "text-black/80"
-                            }
-                          >
-                            {Math.floor(Math.random() * 500)} likes
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleFollow(i)}
-                        className={`w-full transition-all duration-300 hover-lift ${
-                          followedUsers.has(i)
-                            ? "bg-green-500 hover:bg-green-600 text-white"
-                            : "premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                        }`}
-                      >
-                        {followedUsers.has(i) ? "✓ Following" : "Follow"}
-                      </Button>
-                    </GlassmorphicCard>
-                  ))}
-                </div>
+                      </GlassmorphicCard>
+                    ))}
+                  </div>
+                )}
               </section>
 
               {/* GAZE and Vidss Sections Side by Side */}
