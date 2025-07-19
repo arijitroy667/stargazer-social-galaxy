@@ -390,3 +390,32 @@ All colors MUST be HSL.
     opacity: 0;
   }
 }
+
+/* Hide or make scrollbars transparent for all .scrollbar-transparent */
+.scrollbar-transparent::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.scrollbar-transparent::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.scrollbar-transparent {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+body, html {
+  overflow: auto !important;
+  scrollbar-width: none; /* For Firefox */
+}
+
+body::-webkit-scrollbar,
+html::-webkit-scrollbar {
+  width: 0 !important;
+  background: transparent !important;
+}
+
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}

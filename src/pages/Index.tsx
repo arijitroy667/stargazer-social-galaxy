@@ -54,11 +54,17 @@ import { GlassmorphicCard } from "@/components/GlassmorphicCard";
 function VideoUploadForm({
   isDarkMode,
   fetchDashboardData,
+  fetchAllVideos,
   user,
+  onSuccess,
+  closeForm,
 }: {
   isDarkMode: boolean;
   fetchDashboardData: Function;
+  fetchAllVideos: Function;
   user: any;
+  onSuccess?: Function;
+  closeForm?: Function;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -93,8 +99,14 @@ function VideoUploadForm({
       setVideoFile(null);
       // Optionally, trigger a refresh of dashboard data here
       if (user?._id && fetchDashboardData) {
-        await fetchDashboardData(user._id);
+        await Promise.all([
+          fetchDashboardData(user._id),
+          fetchAllVideos(1, 10),
+        ]);
       }
+
+      if (onSuccess) onSuccess();
+      if (closeForm) closeForm();
     } catch (err) {
       alert("Failed to upload video.");
     } finally {
@@ -248,6 +260,208 @@ function VideoPlayerModal({
   );
 }
 
+function CommentModal({
+  open,
+  onClose,
+  videoId,
+  user,
+  isDarkMode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  videoId: string;
+  user: any;
+  isDarkMode: boolean;
+}) {
+  const [comments, setComments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+
+  const apiUrl = import.meta.env.VITE_BACKEND_API;
+
+  const fetchComments = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${apiUrl}/comments/${videoId}`, {
+        withCredentials: true,
+      });
+      console.log("Fetched comments:", res);
+
+      setComments(Array.isArray(res.data.data) ? res.data.data : []);
+    } catch {
+      setComments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) fetchComments();
+    // eslint-disable-next-line
+  }, [open, videoId]);
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      await axios.post(
+        `${apiUrl}/comments/${videoId}`,
+        { content: newComment },
+        { withCredentials: true }
+      );
+      setNewComment("");
+      fetchComments();
+    } catch {}
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editingContent.trim()) return;
+    try {
+      await axios.patch(
+        `${apiUrl}/comments/c/${commentId}`,
+        { content: editingContent },
+        { withCredentials: true }
+      );
+      setEditingId(null);
+      setEditingContent("");
+      fetchComments();
+    } catch {}
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await axios.delete(`${apiUrl}/comments/c/${commentId}`, {
+        withCredentials: true,
+      });
+      fetchComments();
+    } catch {}
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        className={`max-w-lg w-full ${isDarkMode ? "bg-black/90" : "bg-white"}`}
+      >
+        <DialogHeader>
+          <DialogTitle className={isDarkMode ? "text-white" : "text-black"}>
+            Comments
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[350px] overflow-y-auto">
+          {loading ? (
+            <div className={isDarkMode ? "text-white/60" : "text-black/60"}>
+              Loading...
+            </div>
+          ) : comments.length === 0 ? (
+            <div className={isDarkMode ? "text-white/60" : "text-black/60"}>
+              No comments yet.
+            </div>
+          ) : (
+            comments.map((c) => (
+              <div key={c._id} className="flex items-start space-x-3">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={c.owner?.avatar} alt={c.owner?.username} />
+                  <AvatarFallback>
+                    {c.owner?.username?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={
+                        isDarkMode
+                          ? "text-white font-medium"
+                          : "text-black font-medium"
+                      }
+                    >
+                      {c.owner?.username || "User"}
+                    </span>
+                    <span
+                      className={
+                        isDarkMode
+                          ? "text-white/40 text-xs"
+                          : "text-black/40 text-xs"
+                      }
+                    >
+                      {new Date(c.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  {editingId === c._id ? (
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Input
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        className={
+                          isDarkMode ? "bg-white/10 text-white" : "bg-black/5"
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdateComment(c._id)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className={isDarkMode ? "text-white/80" : "text-black/80"}
+                    >
+                      {c.content}
+                    </div>
+                  )}
+                  {c.owner?._id === user?._id && editingId !== c._id && (
+                    <div className="flex space-x-2 mt-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(c._id);
+                          setEditingContent(c.content);
+                        }}
+                        className="text-blue-400"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteComment(c._id)}
+                        className="text-red-500"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex items-center space-x-2 mt-4">
+          <Input
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Add a comment..."
+            className={isDarkMode ? "bg-white/10 text-white" : "bg-black/5"}
+          />
+          <Button onClick={handleAddComment} disabled={!newComment.trim()}>
+            Post
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const Index = () => {
   const fullNameRef = useRef(null);
   const emailRef = useRef(null);
@@ -263,6 +477,10 @@ const Index = () => {
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(
     new Set()
   );
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [allVideos, setAllVideos] = useState([]);
+  const [loadingAllVideos, setLoadingAllVideos] = useState(true);
+  const [vidssUploadOpen, setVidssUploadOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
@@ -353,6 +571,7 @@ const Index = () => {
       fetchAndPopulatePlaylists();
       fetchDashboardData(user._id);
       fetchSubscribedChannels();
+      fetchAllVideos(1, 10);
     }
     fetchAllTweets();
     fetchAndSetTweets();
@@ -895,8 +1114,8 @@ const Index = () => {
         )
       );
 
-      // 3. Refresh dashboard data
-      await fetchDashboardData(user._id);
+      // 3. Refresh all data
+      await Promise.all([fetchDashboardData(user._id), fetchAllVideos(1, 10)]);
     } catch (error) {
       alert("Failed to delete video.");
     }
@@ -909,8 +1128,23 @@ const Index = () => {
         {},
         { withCredentials: true }
       );
-      await fetchDashboardData(user._id); // Refresh videos after like
-      // The useEffect above will update likedVideoIds
+
+      // Update like status immediately for better UX
+      setLikedVideoIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(videoId)) {
+          newSet.delete(videoId);
+        } else {
+          newSet.add(videoId);
+        }
+        return newSet;
+      });
+
+      // Refresh all data
+      await Promise.all([
+        fetchDashboardData(user._id), // Refresh dashboard videos
+        fetchAllVideos(), // Refresh all videos in Vidss section
+      ]);
     } catch (error) {
       alert("Failed to like video.");
     }
@@ -1122,7 +1356,6 @@ const Index = () => {
       const response = await axios.get(`${apiUrl}/tweets/everytweet`, {
         withCredentials: true,
       });
-      console.log("Fetched all tweets:", response);
 
       const tweetsData = Array.isArray(response.data.data)
         ? response.data.data
@@ -1150,12 +1383,29 @@ const Index = () => {
     }
   };
 
-  useEffect(() => {
-    if (user?._id) {
-      fetchAllTweets();
-      fetchDashboardData(user._id);
+  const fetchAllVideos = async (page?: number, limit?: number) => {
+    setLoadingAllVideos(true);
+
+    const safePage = typeof page === "number" && page > 0 ? page : 1;
+    const safeLimit = typeof limit === "number" && limit > 0 ? limit : 10;
+    try {
+      const response = await axios.get(
+        `${apiUrl}/videos/everyvideo/${safePage}/${safeLimit}`,
+        {
+          withCredentials: true,
+        }
+      );
+      console.log("Fetched all videos:", response);
+      const videosData = Array.isArray(response.data.data.videos)
+        ? response.data.data.videos
+        : [];
+      setAllVideos(videosData);
+    } catch (error) {
+      console.error("Error fetching all videos:", error);
+    } finally {
+      setLoadingAllVideos(false);
     }
-  }, [user?._id]);
+  };
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -1192,7 +1442,11 @@ const Index = () => {
                 </Button>
                 <Button
                   onClick={() => setCurrentView("auth")}
-                  className="rounded-full px-6 py-3 backdrop-blur-sm bg-gradient-to-r from-white/15 to-white/25 hover:from-white/25 hover:to-white/35 text-white border-none transition-all duration-500 hover:scale-105 shadow-lg shadow-white/10"
+                  className={`premium-button glas-panel rounded-full px-6 py-3 backdrop-blur-sm border-none transition-all duration-500 hover:scale-105 shadow-lg shadow-white/10 ${
+                    isDarkMode
+                      ? "bg-black text-white hover:bg-neutral-900"
+                      : "bg-white text-black hover:bg-neutral-100"
+                  }`}
                 >
                   Join StarGazer
                 </Button>
@@ -1251,7 +1505,11 @@ const Index = () => {
                     setAuthMode("login");
                     setCurrentView("auth");
                   }}
-                  className="glass-button border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg backdrop-blur-sm animate-spring-up"
+                  className={`premium-button glass-panel px-8 py-4 backdrop-blur-sm animate-spring-up ${
+                    isDarkMode
+                      ? "bg-black text-white hover:bg-neutral-900"
+                      : "bg-white text-black hover:bg-neutral-100"
+                  }`}
                   style={{ animationDelay: "1.1s" }}
                 >
                   Sign In
@@ -1468,29 +1726,6 @@ const Index = () => {
               </div>
 
               <div className="flex items-center space-x-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`rounded-full p-3 backdrop-blur-sm ${
-                    isDarkMode
-                      ? "text-white hover:bg-white/10"
-                      : "text-black hover:bg-black/10"
-                  } border-none transition-all duration-300 hover:scale-105`}
-                >
-                  <Bell className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`rounded-full p-3 backdrop-blur-sm ${
-                    isDarkMode
-                      ? "text-white hover:bg-white/10"
-                      : "text-black hover:bg-black/10"
-                  } border-none transition-all duration-300 hover:scale-105`}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </Button>
-
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1773,7 +2008,14 @@ const Index = () => {
                   </GlassmorphicCard>
 
                   {/* Posts Feed */}
-                  <div className="space-y-6">
+                  <div
+                    className="space-y-6 overflow-y-auto scrollbar-transparent"
+                    style={{
+                      maxHeight: "600px",
+                      minHeight: "300px",
+                      paddingRight: 8,
+                    }}
+                  >
                     {loadingAllTweets ? (
                       <div className="flex justify-center py-10">
                         <div className="animate-pulse text-center">
@@ -1876,18 +2118,7 @@ const Index = () => {
                                   />
                                   Like
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={
-                                    isDarkMode
-                                      ? "text-white/60 hover:text-white"
-                                      : "text-black/60 hover:text-black"
-                                  }
-                                >
-                                  <MessageCircle className="w-4 h-4 mr-1" />
-                                  Comment
-                                </Button>
+
                                 {tweet.owner?._id === user?._id && (
                                   <>
                                     <Button
@@ -1956,136 +2187,327 @@ const Index = () => {
 
                   {/* Video Upload */}
                   <GlassmorphicCard className="p-6 mb-6">
-                    <div className="flex flex-col space-y-4">
-                      <div className="flex items-center space-x-4">
-                        <Avatar>
-                          <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                            SU
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Share a stellar video..."
-                            className={`${
+                    {vidssUploadOpen ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3
+                            className={
                               isDarkMode
-                                ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                                : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
-                            }`}
-                          />
+                                ? "text-white font-medium"
+                                : "text-black font-medium"
+                            }
+                          >
+                            Upload New Video
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setVidssUploadOpen(false)}
+                            className={isDarkMode ? "text-white" : "text-black"}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
                         </div>
+                        <VideoUploadForm
+                          isDarkMode={isDarkMode}
+                          fetchDashboardData={fetchDashboardData}
+                          fetchAllVideos={fetchAllVideos}
+                          user={user}
+                          onSuccess={() => setVidssUploadOpen(false)}
+                          closeForm={() => setVidssUploadOpen(false)}
+                        />
                       </div>
-                      <div className="flex justify-end">
-                        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Video
-                        </Button>
-                      </div>
-                    </div>
-                  </GlassmorphicCard>
-
-                  {/* Video Feed */}
-                  <div className="space-y-6">
-                    {[1, 2, 3].map((i) => (
-                      <GlassmorphicCard key={i} className="p-6">
-                        <div className="flex items-start space-x-4">
+                    ) : (
+                      <div className="flex flex-col space-y-4">
+                        <div className="flex items-center space-x-4">
                           <Avatar>
-                            <AvatarFallback className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
-                              V{i}
+                            <AvatarImage
+                              src={user?.avatar}
+                              alt={user?.fullName}
+                            />
+                            <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                              {user?.fullName?.charAt(0) || "U"}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h4
-                                className={`font-semibold ${
+                            <Input
+                              placeholder="Share a stellar video..."
+                              className={`${
+                                isDarkMode
+                                  ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                                  : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
+                              }`}
+                              onClick={() => setVidssUploadOpen(true)}
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            onClick={() => setVidssUploadOpen(true)}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Video
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </GlassmorphicCard>
+
+                  {/* Video Feed - make this section scrollable and videos playable */}
+                  <div
+                    className="space-y-6 overflow-y-auto scrollbar-transparent"
+                    style={{
+                      maxHeight: "600px",
+                      minHeight: "300px",
+                      paddingRight: 8,
+                    }}
+                  >
+                    {loadingAllVideos ? (
+                      <div className="flex justify-center py-10">
+                        <div className="animate-pulse text-center">
+                          <div
+                            className={
+                              isDarkMode ? "text-white/60" : "text-black/60"
+                            }
+                          >
+                            Loading videos...
+                          </div>
+                        </div>
+                      </div>
+                    ) : allVideos.length === 0 ? (
+                      <div className="text-center py-10">
+                        <p
+                          className={
+                            isDarkMode ? "text-white/60" : "text-black/60"
+                          }
+                        >
+                          No videos yet. Be the first to share one!
+                        </p>
+                      </div>
+                    ) : (
+                      allVideos.map((video: any) => (
+                        <GlassmorphicCard key={video._id} className="p-6">
+                          <div className="flex items-start space-x-4">
+                            <Avatar>
+                              <AvatarImage
+                                src={video.owner?.avatar}
+                                alt={video.owner?.fullName}
+                              />
+                              <AvatarFallback className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                                {video.owner?.fullName?.charAt(0) || "V"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h4
+                                  className={`font-semibold ${
+                                    isDarkMode ? "text-white" : "text-black"
+                                  }`}
+                                >
+                                  {video.owner?.fullName || "Video Creator"}
+                                </h4>
+                                <span
+                                  className={`text-sm ${
+                                    isDarkMode
+                                      ? "text-white/60"
+                                      : "text-black/60"
+                                  }`}
+                                >
+                                  @{video.owner?.username || "creator"}
+                                </span>
+                                <span
+                                  className={`text-sm ${
+                                    isDarkMode
+                                      ? "text-white/40"
+                                      : "text-black/40"
+                                  }`}
+                                >
+                                  ·{" "}
+                                  {new Date(
+                                    video.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+
+                              {/* Playable Video */}
+                              <div
+                                className="aspect-video rounded-lg mb-4 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity overflow-hidden bg-black"
+                                style={{ width: "384px", height: "216px" }}
+                              >
+                                <video
+                                  src={video.videoFile}
+                                  poster={video.thumbnail}
+                                  controls
+                                  className="w-full h-full object-contain rounded"
+                                  style={{ background: "#000" }}
+                                />
+                              </div>
+
+                              <h3
+                                className={`font-medium mb-2 ${
                                   isDarkMode ? "text-white" : "text-black"
                                 }`}
                               >
-                                Video Creator {i}
-                              </h4>
-                              <span
-                                className={`text-sm ${
-                                  isDarkMode ? "text-white/60" : "text-black/60"
+                                {video.title}
+                              </h3>
+
+                              <p
+                                className={`mb-4 ${
+                                  isDarkMode ? "text-white/80" : "text-black/80"
                                 }`}
                               >
-                                @creator{i}
-                              </span>
-                              <span
-                                className={`text-sm ${
-                                  isDarkMode ? "text-white/40" : "text-black/40"
-                                }`}
-                              >
-                                · 1h
-                              </span>
-                            </div>
-                            <div className="aspect-video bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg mb-4 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity">
-                              <Play className="w-12 h-12 text-white" />
-                            </div>
-                            <p
-                              className={`mb-4 ${
-                                isDarkMode ? "text-white/80" : "text-black/80"
-                              }`}
-                            >
-                              Stellar Journey Episode {i} - Exploring the cosmos
-                              beyond imagination! 🚀
-                            </p>
-                            <div className="flex items-center space-x-6">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleLike(i + 10)}
-                                className={`transition-all duration-300 ${
-                                  likedPosts.has(i + 10)
-                                    ? `text-red-500 hover:text-red-600 ${
-                                        isDarkMode ? "" : "hover:text-red-700"
-                                      }`
-                                    : `${
+                                {video.description}
+                              </p>
+
+                              <div className="flex items-center space-x-6">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleLikeVideo(video._id)}
+                                  className={
+                                    likedVideoIds.has(video._id)
+                                      ? isDarkMode
+                                        ? "text-pink-400 hover:text-pink-600"
+                                        : "text-pink-600 hover:text-pink-800"
+                                      : isDarkMode
+                                      ? "text-white/60 hover:text-pink-400"
+                                      : "text-black/60 hover:text-pink-600"
+                                  }
+                                >
+                                  <Heart
+                                    className={`w-4 h-4 mr-1 ${
+                                      likedVideoIds.has(video._id)
+                                        ? "fill-current"
+                                        : ""
+                                    }`}
+                                    fill={
+                                      likedVideoIds.has(video._id)
+                                        ? "currentColor"
+                                        : "none"
+                                    }
+                                    stroke="currentColor"
+                                  />
+                                  Like
+                                </Button>
+
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={
+                                    isDarkMode
+                                      ? "text-white/60 hover:text-white"
+                                      : "text-black/60 hover:text-black"
+                                  }
+                                  onClick={() => {
+                                    setSelectedVideo(video);
+                                    setIsCommentModalOpen(true);
+                                  }}
+                                >
+                                  <MessageCircle className="w-4 h-4 mr-1" />
+                                  Comment
+                                </Button>
+
+                                {/* Show additional options for videos owned by current user */}
+                                {video.owner?._id === user?._id && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={
+                                        isDarkMode
+                                          ? "text-red-500 hover:text-red-600"
+                                          : "text-red-600 hover:text-red-700"
+                                      }
+                                      onClick={() => {
+                                        if (
+                                          confirm(
+                                            "Are you sure you want to delete this video?"
+                                          )
+                                        ) {
+                                          handleDeleteVideo(video._id).then(
+                                            () => {
+                                              fetchAllVideos(1, 10); // Refresh all videos after delete
+                                            }
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <X className="w-4 h-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </>
+                                )}
+
+                                {/* Add to Playlist button */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={
                                         isDarkMode
                                           ? "text-white/60 hover:text-white"
                                           : "text-black/60 hover:text-black"
-                                      }`
-                                }`}
-                              >
-                                <Heart
-                                  className={`w-4 h-4 mr-1 ${
-                                    likedPosts.has(i + 10)
-                                      ? "fill-current animate-heart-pulse"
-                                      : ""
-                                  }`}
-                                />
-                                {Math.floor(Math.random() * 100) +
-                                  (likedPosts.has(i + 10) ? 1 : 0)}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={
-                                  isDarkMode
-                                    ? "text-white/60 hover:text-white"
-                                    : "text-black/60 hover:text-black"
-                                }
-                              >
-                                <MessageCircle className="w-4 h-4 mr-1" />
-                                {Math.floor(Math.random() * 50)}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={
-                                  isDarkMode
-                                    ? "text-white/60 hover:text-white"
-                                    : "text-black/60 hover:text-black"
-                                }
-                              >
-                                <Volume2 className="w-4 h-4 mr-1" />
-                                {Math.floor(Math.random() * 1000)}K
-                              </Button>
+                                      }
+                                    >
+                                      <Plus className="w-4 h-4 mr-1" />
+                                      Add to Playlist
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    className={`w-64 ${
+                                      isDarkMode
+                                        ? "bg-black/80 text-white"
+                                        : "bg-white text-black"
+                                    } backdrop-blur-lg`}
+                                  >
+                                    {dashboardData.playlists.length === 0 ? (
+                                      <div className="px-2 py-4 text-center text-sm">
+                                        No playlists yet. Create one in the
+                                        Dashboard!
+                                      </div>
+                                    ) : (
+                                      dashboardData.playlists.map(
+                                        (playlist: any) => (
+                                          <DropdownMenuItem
+                                            key={playlist._id}
+                                            className="cursor-pointer"
+                                            onClick={async () => {
+                                              await handleAddVideo(
+                                                video._id,
+                                                playlist._id
+                                              );
+                                              await fetchDashboardData(
+                                                user._id
+                                              );
+                                            }}
+                                          >
+                                            {playlist.name}
+                                          </DropdownMenuItem>
+                                        )
+                                      )
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </GlassmorphicCard>
-                    ))}
+                        </GlassmorphicCard>
+                      ))
+                    )}
                   </div>
                 </section>
+                {selectedVideo && (
+                  <CommentModal
+                    open={isCommentModalOpen}
+                    onClose={() => setIsCommentModalOpen(false)}
+                    videoId={selectedVideo._id}
+                    user={user}
+                    isDarkMode={isDarkMode}
+                  />
+                )}
               </div>
             </TabsContent>
 
@@ -2538,6 +2960,7 @@ const Index = () => {
                     <VideoUploadForm
                       isDarkMode={isDarkMode}
                       fetchDashboardData={fetchDashboardData}
+                      fetchAllVideos={fetchAllVideos}
                       user={user}
                     />
                   </GlassmorphicCard>
@@ -3053,151 +3476,6 @@ const Index = () => {
                 </div>
               </GlassmorphicCard>
 
-              {/* Privacy Settings */}
-              <GlassmorphicCard className="p-6">
-                <h3
-                  className={`text-lg font-semibold mb-4 ${
-                    isDarkMode ? "text-white" : "text-black"
-                  }`}
-                >
-                  <Shield className="w-5 h-5 inline mr-2" />
-                  Privacy & Security
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Private Account
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Only followers can see your posts
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Show Online Status
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Let others see when you're online
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Two-Factor Authentication
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Add an extra layer of security to your account
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <Lock className="w-4 h-4 mr-2" />
-                      Setup
-                    </Button>
-                  </div>
-                </div>
-              </GlassmorphicCard>
-
-              {/* Notification Settings */}
-              <GlassmorphicCard className="p-6">
-                <h3
-                  className={`text-lg font-semibold mb-4 ${
-                    isDarkMode ? "text-white" : "text-black"
-                  }`}
-                >
-                  <Bell className="w-5 h-5 inline mr-2" />
-                  Notifications
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Push Notifications
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Receive notifications on your device
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Email Notifications
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Get updates via email
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label
-                        className={`${
-                          isDarkMode ? "text-white" : "text-black"
-                        }`}
-                      >
-                        Sound Effects
-                      </Label>
-                      <p
-                        className={`text-sm ${
-                          isDarkMode ? "text-white/60" : "text-black/60"
-                        }`}
-                      >
-                        Play sounds for notifications
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-              </GlassmorphicCard>
-
               {/* Account Actions */}
               <GlassmorphicCard className="p-6">
                 <h3
@@ -3208,12 +3486,9 @@ const Index = () => {
                   Account Actions
                 </h3>
                 <div className="space-y-4">
-                  <Button variant="outline" className="w-full justify-start">
-                    Export Data
-                  </Button>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-red-500 hover:text-red-600"
+                    className="w-[10%] justify-start text-red-500 hover:text-red-600"
                   >
                     Delete Account
                   </Button>
