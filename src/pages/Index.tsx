@@ -1,6 +1,7 @@
 import React, { createContext } from "react";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { Check, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -463,15 +464,23 @@ function CommentModal({
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const fullNameRef = useRef(null);
   const emailRef = useRef(null);
   const apiUrl = import.meta.env.VITE_BACKEND_API;
   const [currentView, setCurrentView] = useState<
     "landing" | "auth" | "dashboard"
-  >("landing");
+  >(() => {
+    const storedUser = localStorage.getItem("user");
+    // If user exists in localStorage, start in dashboard, else landing
+    return storedUser ? "dashboard" : "landing";
+  });
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const [activeTab, setActiveTab] = useState("socials");
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(
@@ -503,9 +512,17 @@ const Index = () => {
 
   useEffect(() => {
     if (user) {
-      console.log("User updated:", user);
+      localStorage.setItem("user", JSON.stringify(user));
+      setCurrentView("dashboard"); // Ensure we're in dashboard when user exists
+    } else {
+      localStorage.removeItem("user");
+      setCurrentView("landing"); // Go to landing when no user
     }
   }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem("currentView", currentView);
+  }, [currentView]);
 
   useEffect(() => {
     if (dashboardData.likedVideos && Array.isArray(dashboardData.likedVideos)) {
@@ -673,10 +690,12 @@ const Index = () => {
         }
       );
       setUser(null);
+      localStorage.removeItem("user");
       setCurrentView("landing");
     } catch (error) {
       console.error("Logout failed:", error);
       setUser(null);
+      localStorage.removeItem("user");
       setCurrentView("landing");
     }
   };
@@ -1395,7 +1414,7 @@ const Index = () => {
           withCredentials: true,
         }
       );
-      console.log("Fetched all videos:", response);
+
       const videosData = Array.isArray(response.data.data.videos)
         ? response.data.data.videos
         : [];
@@ -1946,10 +1965,9 @@ const Index = () => {
                                 ? "text-white border-white/30 hover:bg-white/10"
                                 : "text-black border-black/30 hover:bg-black/10"
                             }`}
-                            onClick={() => {
-                              // You can use Next.js router or your preferred routing method
-                              window.location.href = `/profile/${communityUser._id}`;
-                            }}
+                            onClick={() =>
+                              navigate(`/profile/${communityUser._id}`)
+                            }
                           >
                             <User className="w-4 h-4 mr-2" />
                             View Profile
