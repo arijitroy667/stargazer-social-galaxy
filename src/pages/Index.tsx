@@ -277,6 +277,9 @@ const Index = () => {
     loading: true,
     error: null,
   });
+  const [allTweets, setAllTweets] = useState([]);
+  const [loadingAllTweets, setLoadingAllTweets] = useState(true);
+  const [gazePostContent, setGazePostContent] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -351,7 +354,7 @@ const Index = () => {
       fetchDashboardData(user._id);
       fetchSubscribedChannels();
     }
-
+    fetchAllTweets();
     fetchAndSetTweets();
   }, [user?._id]);
 
@@ -943,13 +946,29 @@ const Index = () => {
     return axios.post(`${apiUrl}/tweets`, tweetData, { withCredentials: true });
   };
 
+  const handleCreateTweetFromDashboard = async () => {
+    const content = prompt("What's on your mind?");
+    if (!content) return;
+    try {
+      await createTweet({ content });
+
+      // Refresh both tweet collections
+      await Promise.all([
+        fetchAndSetTweets(), // Refresh Dashboard My Tweets
+        fetchAllTweets(), // Refresh GAZE tweets
+      ]);
+    } catch (err) {
+      alert("Failed to create tweet.");
+    }
+  };
+
   const handleDeleteTweet = async (tweetId: string) => {
     if (!confirm("Are you sure you want to delete this tweet?")) return;
     try {
       await axios.delete(`${apiUrl}/tweets/${tweetId}`, {
         withCredentials: true,
       });
-      await fetchAndSetTweets();
+      await Promise.all([fetchAndSetTweets(), fetchAllTweets()]);
     } catch (error) {
       alert("Failed to delete tweet.");
     }
@@ -974,8 +993,12 @@ const Index = () => {
         return newSet;
       });
 
-      // Then refresh the data from server
-      await fetchDashboardData(user._id);
+      // Refresh all data
+      await Promise.all([
+        fetchAndSetTweets(),
+        fetchDashboardData(user._id),
+        fetchAllTweets(), // Also refresh all tweets
+      ]);
     } catch (error) {
       alert("Failed to like tweet.");
     }
@@ -990,7 +1013,7 @@ const Index = () => {
         { content: newContent },
         { withCredentials: true }
       );
-      await fetchAndSetTweets(); // Refresh tweets after update
+      await Promise.all([fetchAndSetTweets(), fetchAllTweets()]);
     } catch (error) {
       alert("Failed to update tweet.");
     }
@@ -1092,6 +1115,47 @@ const Index = () => {
   const isFollowingUser = (targetUser: any) => {
     return followedUserIds.has(targetUser._id);
   };
+
+  const fetchAllTweets = async () => {
+    setLoadingAllTweets(true);
+    try {
+      const response = await axios.get(`${apiUrl}/tweets/everytweet`, {
+        withCredentials: true,
+      });
+      console.log("Fetched all tweets:", response);
+
+      const tweetsData = Array.isArray(response.data.data)
+        ? response.data.data
+        : [];
+      setAllTweets(tweetsData);
+    } catch (error) {
+      console.error("Error fetching all tweets:", error);
+    } finally {
+      setLoadingAllTweets(false);
+    }
+  };
+
+  // Add this function to handle posting a new tweet from the GAZE section
+  const handleGazePost = async () => {
+    if (!gazePostContent.trim()) return;
+
+    try {
+      await createTweet({ content: gazePostContent });
+      setGazePostContent(""); // Clear the input
+      // Refresh tweets to show the new one
+      await Promise.all([fetchAllTweets(), fetchAndSetTweets()]);
+    } catch (error) {
+      alert("Failed to post tweet.");
+      console.error("Error posting tweet:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchAllTweets();
+      fetchDashboardData(user._id);
+    }
+  }, [user?._id]);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -1678,8 +1742,9 @@ const Index = () => {
                   <GlassmorphicCard className="p-6 mb-6">
                     <div className="flex space-x-4">
                       <Avatar>
+                        <AvatarImage src={user.avatar} alt={user.fullName} />
                         <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                          SU
+                          {user.fullName?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -1690,9 +1755,16 @@ const Index = () => {
                               ? "bg-white/10 border-white/20 text-white placeholder:text-white/60"
                               : "bg-black/5 border-black/20 text-black placeholder:text-black/60"
                           }`}
+                          value={gazePostContent}
+                          onChange={(e) => setGazePostContent(e.target.value)}
                         />
                         <div className="flex justify-end mt-3">
-                          <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                          <Button
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            onClick={handleGazePost}
+                            disabled={!gazePostContent.trim()}
+                          >
+                            <Edit3 className="w-4 h-4 mr-2" />
                             Post
                           </Button>
                         </div>
@@ -1702,91 +1774,173 @@ const Index = () => {
 
                   {/* Posts Feed */}
                   <div className="space-y-6">
-                    {[1, 2, 3].map((i) => (
-                      <GlassmorphicCard key={i} className="p-6">
-                        <div className="flex items-start space-x-4">
-                          <Avatar>
-                            <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                              U{i}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h4
-                                className={`font-semibold ${
-                                  isDarkMode ? "text-white" : "text-black"
-                                }`}
-                              >
-                                Cosmic User {i}
-                              </h4>
-                              <span
-                                className={`text-sm ${
-                                  isDarkMode ? "text-white/60" : "text-black/60"
-                                }`}
-                              >
-                                @cosmicuser{i}
-                              </span>
-                              <span
-                                className={`text-sm ${
-                                  isDarkMode ? "text-white/40" : "text-black/40"
-                                }`}
-                              >
-                                · 2h
-                              </span>
-                            </div>
-                            <p
-                              className={`mb-4 ${
-                                isDarkMode ? "text-white/80" : "text-black/80"
-                              }`}
-                            >
-                              Just witnessed the most beautiful constellation
-                              tonight. The universe never fails to amaze me!
-                              ✨🌟
-                            </p>
-                            <div className="flex items-center space-x-6">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleLike(i)}
-                                className={`transition-all duration-300 ${
-                                  likedPosts.has(i)
-                                    ? `text-red-500 hover:text-red-600 ${
-                                        isDarkMode ? "" : "hover:text-red-700"
-                                      }`
-                                    : `${
-                                        isDarkMode
-                                          ? "text-white/60 hover:text-white"
-                                          : "text-black/60 hover:text-black"
-                                      }`
-                                }`}
-                              >
-                                <Heart
-                                  className={`w-4 h-4 mr-1 ${
-                                    likedPosts.has(i)
-                                      ? "fill-current animate-heart-pulse"
-                                      : ""
-                                  }`}
-                                />
-                                {Math.floor(Math.random() * 50) +
-                                  (likedPosts.has(i) ? 1 : 0)}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={
-                                  isDarkMode
-                                    ? "text-white/60 hover:text-white"
-                                    : "text-black/60 hover:text-black"
-                                }
-                              >
-                                <MessageCircle className="w-4 h-4 mr-1" />
-                                {Math.floor(Math.random() * 20)}
-                              </Button>
-                            </div>
+                    {loadingAllTweets ? (
+                      <div className="flex justify-center py-10">
+                        <div className="animate-pulse text-center">
+                          <div
+                            className={
+                              isDarkMode ? "text-white/60" : "text-black/60"
+                            }
+                          >
+                            Loading tweets...
                           </div>
                         </div>
-                      </GlassmorphicCard>
-                    ))}
+                      </div>
+                    ) : allTweets.length === 0 ? (
+                      <div className="text-center py-10">
+                        <p
+                          className={
+                            isDarkMode ? "text-white/60" : "text-black/60"
+                          }
+                        >
+                          No tweets yet. Be the first to share your thoughts!
+                        </p>
+                      </div>
+                    ) : (
+                      allTweets.map((tweet: any) => (
+                        <GlassmorphicCard key={tweet._id} className="p-6">
+                          <div className="flex items-start space-x-4">
+                            <Avatar>
+                              <AvatarImage
+                                src={tweet.owner?.avatar}
+                                alt={tweet.owner?.fullName}
+                              />
+                              <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                                {tweet.owner?.fullName?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h4
+                                  className={`font-semibold ${
+                                    isDarkMode ? "text-white" : "text-black"
+                                  }`}
+                                >
+                                  <span
+                                    className={`text-sm ${
+                                      isDarkMode
+                                        ? "text-white/60"
+                                        : "text-black/60"
+                                    }`}
+                                  >
+                                    @{tweet.owner?.username || "unknown"}
+                                  </span>
+                                </h4>
+                                <span
+                                  className={`text-sm ${
+                                    isDarkMode
+                                      ? "text-white/40"
+                                      : "text-black/40"
+                                  }`}
+                                >
+                                  ·{" "}
+                                  {new Date(
+                                    tweet.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p
+                                className={`mb-4 ${
+                                  isDarkMode ? "text-white/80" : "text-black/80"
+                                }`}
+                              >
+                                {tweet.content}
+                              </p>
+                              <div className="flex items-center space-x-6">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleLikeTweet(tweet._id)}
+                                  className={
+                                    likedTweetIds.has(tweet._id)
+                                      ? isDarkMode
+                                        ? "text-pink-400 hover:text-pink-600"
+                                        : "text-pink-600 hover:text-pink-800"
+                                      : isDarkMode
+                                      ? "text-white/60 hover:text-pink-400"
+                                      : "text-black/60 hover:text-pink-600"
+                                  }
+                                >
+                                  <Heart
+                                    className={`w-4 h-4 mr-1 ${
+                                      likedTweetIds.has(tweet._id)
+                                        ? "fill-current"
+                                        : ""
+                                    }`}
+                                    fill={
+                                      likedTweetIds.has(tweet._id)
+                                        ? "currentColor"
+                                        : "none"
+                                    }
+                                    stroke="currentColor"
+                                  />
+                                  Like
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={
+                                    isDarkMode
+                                      ? "text-white/60 hover:text-white"
+                                      : "text-black/60 hover:text-black"
+                                  }
+                                >
+                                  <MessageCircle className="w-4 h-4 mr-1" />
+                                  Comment
+                                </Button>
+                                {tweet.owner?._id === user?._id && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={
+                                        isDarkMode
+                                          ? "text-purple-400 hover:text-purple-600"
+                                          : "text-purple-600 hover:text-purple-800"
+                                      }
+                                      onClick={() =>
+                                        handleUpdateTweet(
+                                          tweet._id,
+                                          tweet.content
+                                        )
+                                      }
+                                    >
+                                      <Edit3 className="w-4 h-4 mr-1" />
+                                      Update
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={
+                                        isDarkMode
+                                          ? "text-red-500 hover:text-red-600"
+                                          : "text-red-600 hover:text-red-700"
+                                      }
+                                      onClick={() => {
+                                        if (
+                                          confirm(
+                                            "Are you sure you want to delete this tweet?"
+                                          )
+                                        ) {
+                                          handleDeleteTweet(tweet._id).then(
+                                            () => {
+                                              fetchAllTweets(); // Refresh all tweets after delete
+                                            }
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <X className="w-4 h-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </GlassmorphicCard>
+                      ))
+                    )}
                   </div>
                 </section>
 
@@ -2519,16 +2673,7 @@ const Index = () => {
                     </h3>
                     <Button
                       className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                      onClick={async () => {
-                        const content = prompt("What's on your mind?");
-                        if (!content) return;
-                        try {
-                          await createTweet({ content });
-                          await fetchAndSetTweets();
-                        } catch (err) {
-                          alert("Failed to create tweet.");
-                        }
-                      }}
+                      onClick={handleCreateTweetFromDashboard}
                     >
                       <Edit3 className="w-4 h-4 mr-2" />
                       Create Tweet
