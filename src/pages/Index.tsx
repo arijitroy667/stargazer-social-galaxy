@@ -260,7 +260,9 @@ const Index = () => {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("socials");
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
-  const [followedUsers, setFollowedUsers] = useState<Set<number>>(new Set());
+  const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
@@ -346,15 +348,11 @@ const Index = () => {
 
     if (user?._id) {
       fetchAndPopulatePlaylists();
+      fetchDashboardData(user._id);
+      fetchSubscribedChannels();
     }
 
     fetchAndSetTweets();
-  }, [user?._id]);
-
-  useEffect(() => {
-    if (user?._id) {
-      fetchDashboardData(user._id);
-    }
   }, [user?._id]);
 
   useEffect(() => {
@@ -369,16 +367,6 @@ const Index = () => {
       newLikedPosts.add(postId);
     }
     setLikedPosts(newLikedPosts);
-  };
-
-  const handleFollow = (userId: number) => {
-    const newFollowedUsers = new Set(followedUsers);
-    if (newFollowedUsers.has(userId)) {
-      newFollowedUsers.delete(userId);
-    } else {
-      newFollowedUsers.add(userId);
-    }
-    setFollowedUsers(newFollowedUsers);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -679,6 +667,23 @@ const Index = () => {
         axios.get(`${apiUrl}/likes/videos`, { withCredentials: true }),
         axios.get(`${apiUrl}/likes/tweets`, { withCredentials: true }),
       ]);
+
+      const followStatsResponse = await Promise.all([
+        axios.get(`${apiUrl}/subscriptions/u/${userId}`, {
+          withCredentials: true,
+        }),
+        axios.get(`${apiUrl}/subscriptions/c/${userId}`, {
+          withCredentials: true,
+        }),
+      ]);
+
+      const followersCount = Array.isArray(followStatsResponse[1].data.data)
+        ? followStatsResponse[1].data.data.length
+        : 0;
+
+      const followingCount = Array.isArray(followStatsResponse[0].data.data)
+        ? followStatsResponse[0].data.data.length
+        : 0;
 
       // Process playlists and fetch video details
       const playlistsRaw = Array.isArray(playlistsRes.data.data)
@@ -994,12 +999,32 @@ const Index = () => {
   const fetchCommunityUsers = async () => {
     setLoadingUsers(true);
     try {
+      // Fetch all users first
       const response = await axios.get(`${apiUrl}/users/allUsers`, {
         withCredentials: true,
       });
-      setCommunityUsers(
-        Array.isArray(response.data.data) ? response.data.data : []
+
+      // For each user, fetch their follow stats
+      const usersWithStats = await Promise.all(
+        response.data.data.map(async (user: any) => {
+          const [followingRes, followersRes] = await Promise.all([
+            axios.get(`${apiUrl}/subscriptions/u/${user._id}`, {
+              withCredentials: true,
+            }),
+            axios.get(`${apiUrl}/subscriptions/c/${user._id}`, {
+              withCredentials: true,
+            }),
+          ]);
+
+          return {
+            ...user,
+            followers: followersRes.data.data || [],
+            following: followingRes.data.data || [],
+          };
+        })
       );
+
+      setCommunityUsers(usersWithStats);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -1007,24 +1032,65 @@ const Index = () => {
     }
   };
 
+  const fetchSubscribedChannels = async () => {
+    if (!user?._id) return;
+    try {
+      const response = await axios.get(
+        `${apiUrl}/subscriptions/u/${user._id}`,
+        { withCredentials: true }
+      );
+
+      // Extract IDs of users you follow
+      const subscribedIds = new Set<string>(
+        Array.isArray(response.data.data)
+          ? response.data.data.map((channel: any) =>
+              typeof channel === "object" ? channel._id : channel
+            )
+          : []
+      );
+
+      setFollowedUserIds(subscribedIds);
+    } catch (error) {
+      console.error("Error fetching subscribed channels:", error);
+    }
+  };
+
   const handleFollowUser = async (userId: string) => {
     try {
+      // Toggle follow status on the server
       await axios.post(
         `${apiUrl}/subscriptions/c/${userId}`,
         {},
         { withCredentials: true }
       );
-      // Update the users list to reflect new follow status
-      await fetchCommunityUsers();
+
+      // Update local state optimistically
+      setFollowedUserIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(userId)) {
+          newSet.delete(userId);
+        } else {
+          newSet.add(userId);
+        }
+        return newSet;
+      });
+
+      // Refresh all necessary data to ensure consistency
+      await Promise.all([
+        fetchCommunityUsers(), // Update community users list
+        fetchSubscribedChannels(), // Update followed users list
+        fetchDashboardData(user._id), // Update dashboard stats
+      ]);
     } catch (error) {
       console.error("Failed to follow user:", error);
+      // Roll back optimistic update on error
+      fetchSubscribedChannels();
       alert("Failed to update follow status");
     }
   };
 
-  // Add this to check if you're following a user
-  const isFollowingUser = (user: any) => {
-    return user.followers?.includes(user?._id);
+  const isFollowingUser = (targetUser: any) => {
+    return followedUserIds.has(targetUser._id);
   };
 
   const toggleTheme = () => {
@@ -1551,14 +1617,20 @@ const Index = () => {
                             onClick={() => handleFollowUser(communityUser._id)}
                             className={`flex-1 transition-all duration-300 ${
                               isFollowingUser(communityUser)
-                                ? "bg-green-500 hover:bg-green-600 text-white"
+                                ? "bg-green-500 hover:bg-red-500 group"
                                 : "premium-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                             }`}
                           >
                             {isFollowingUser(communityUser) ? (
                               <>
-                                <Check className="w-4 h-4 mr-2" />
-                                Following
+                                <Check className="w-4 h-4 mr-2 group-hover:hidden" />
+                                <UserPlus className="w-4 h-4 mr-2 hidden group-hover:block" />
+                                <span className="group-hover:hidden">
+                                  Following
+                                </span>
+                                <span className="hidden group-hover:block">
+                                  Unfollow
+                                </span>
                               </>
                             ) : (
                               <>
