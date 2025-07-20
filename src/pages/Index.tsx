@@ -1662,7 +1662,7 @@ const Index = () => {
 
                   <div>
                     <Label htmlFor="email" className="text-white">
-                      Email
+                      Confirm Email
                     </Label>
                     <Input
                       id="email"
