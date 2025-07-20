@@ -36,7 +36,7 @@ const ViewProfile = () => {
   });
   const [profileData, setProfileData] = useState<any>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
+  // const [isFollowing, setIsFollowing] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -44,6 +44,10 @@ const ViewProfile = () => {
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
   const [likedTweetIds, setLikedTweetIds] = useState<Set<string>>(new Set());
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [refreshProfile, setRefreshProfile] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
@@ -53,73 +57,66 @@ const ViewProfile = () => {
     const fetchProfileData = async () => {
       setIsLoading(true);
       try {
-        // Get current logged in user from localStorage
         const storedUser = localStorage.getItem("user");
         const loggedInUser = storedUser ? JSON.parse(storedUser) : null;
         setCurrentUser(loggedInUser);
 
-        // Fetch profile data
-        const userResponse = await axios.get(
-          `${apiUrl}/users/public-profile/${userId}`,
-          {
+        // Fetch profile data as before...
+        const [
+          userResponse,
+          followingRes,
+          followersRes,
+          videosResponse,
+          tweetsResponse,
+          playlistsResponse,
+        ] = await Promise.all([
+          axios.get(`${apiUrl}/users/public-profile/${userId}`, {
             withCredentials: true,
-          }
-        );
-
-        // Fetch user videos
-        const videosResponse = await axios.get(
-          `${apiUrl}/videos/public-videos/${userId}`,
-          {
-            withCredentials: true,
-          }
-        );
-
-        // Fetch user tweets
-        const tweetsResponse = await axios.get(
-          `${apiUrl}/tweets/user/${userId}`,
-          {
-            withCredentials: true,
-          }
-        );
-
-        // Fetch user playlists
-        const playlistsResponse = await axios.get(
-          `${apiUrl}/playlist/user/${userId}`,
-          {
-            withCredentials: true,
-          }
-        );
-
-        // Fetch follow stats
-        const [followingRes, followersRes] = await Promise.all([
+          }),
           axios.get(`${apiUrl}/subscriptions/u/${userId}`, {
             withCredentials: true,
           }),
           axios.get(`${apiUrl}/subscriptions/c/${userId}`, {
             withCredentials: true,
           }),
+          axios.get(`${apiUrl}/videos/public-videos/${userId}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/tweets/user/${userId}`, {
+            withCredentials: true,
+          }),
+          axios.get(`${apiUrl}/playlist/user/${userId}`, {
+            withCredentials: true,
+          }),
         ]);
 
-        // Check if current user follows this profile
+        // Fetch current user's subscriptions and store as Set
         if (loggedInUser) {
-          const followers = followersRes.data.data || [];
-          const isCurrentUserFollowing = followers.some(
-            (follower: any) => follower._id === loggedInUser._id
+          const userSubscriptionsRes = await axios.get(
+            `${apiUrl}/subscriptions/u/${loggedInUser._id}`,
+            { withCredentials: true }
           );
-          setIsFollowing(isCurrentUserFollowing);
+          const followed = Array.isArray(userSubscriptionsRes.data.data)
+            ? userSubscriptionsRes.data.data.map((channel: any) =>
+                typeof channel === "object" ? channel._id : channel
+              )
+            : [];
+          setFollowedUserIds(new Set(followed));
+        } else {
+          setFollowedUserIds(new Set());
         }
 
-        // Process playlists and fetch video details for each
+        // Process videos, tweets, playlists as before...
+        const videosData = videosResponse.data.data?.videos || [];
+        const tweetsData = tweetsResponse.data.data || [];
         const playlistsRaw = Array.isArray(playlistsResponse.data.data)
           ? playlistsResponse.data.data
           : [];
-
         const playlistsWithVideos = await Promise.all(
           playlistsRaw.map(async (playlist: any) => {
             const videoIds = playlist.videos;
             if (!videoIds || videoIds.length === 0)
               return { ...playlist, videos: [] };
-
             const videoObjects = await Promise.all(
               videoIds.map((id: string) =>
                 axios
@@ -128,15 +125,11 @@ const ViewProfile = () => {
                   .catch(() => null)
               )
             );
-
             return { ...playlist, videos: videoObjects.filter(Boolean) };
           })
         );
 
-        const videosData = videosResponse.data.data?.videos || [];
-        const tweetsData = tweetsResponse.data.data || [];
-
-        // Initialize like counts for videos and tweets
+        // Initialize like counts
         const initialLikeCounts: Record<string, number> = {};
         videosData.forEach((video: any) => {
           initialLikeCounts[video._id] = video.likes || 0;
@@ -204,6 +197,8 @@ const ViewProfile = () => {
 
     fetchLikedContent();
   }, [currentUser, apiUrl]);
+
+  const isFollowing = followedUserIds.has(userId);
 
   const handleVideoClick = (video: any) => {
     setSelectedVideo(video);
@@ -305,67 +300,65 @@ const ViewProfile = () => {
       return;
     }
 
-    // Optimistically update UI
-    setIsFollowing((prev) => !prev);
+    const wasFollowing = followedUserIds.has(userId);
 
-    // Update follower count
+    // 1. Optimistically update the button UI
+    setFollowedUserIds((prev) => {
+      const newSet = new Set(prev);
+      if (wasFollowing) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+
+    // 2. Optimistically update the followers count
     setProfileData((prev: any) => ({
       ...prev,
       stats: {
         ...prev.stats,
-        followers: prev.stats.followers + (isFollowing ? -1 : 1),
+        followers: prev.stats.followers + (wasFollowing ? -1 : 1),
       },
     }));
 
     try {
-      const response = await axios.post(
+      // 3. Make the API call
+      await axios.post(
         `${apiUrl}/subscriptions/c/${userId}`,
         {},
         { withCredentials: true }
       );
 
-      // Refresh followers count with actual server value
-      const followersRes = await axios.get(
-        `${apiUrl}/subscriptions/c/${userId}`,
-        {
-          withCredentials: true,
-        }
-      );
-
-      setProfileData((prev: any) => ({
-        ...prev,
-        stats: {
-          ...prev.stats,
-          followers: followersRes.data.data?.length || 0,
-        },
-      }));
-
-      toast({
-        title: isFollowing ? "Unfollowed" : "Following",
-        description: isFollowing
-          ? `You unfollowed ${profileData.user.username}`
-          : `You are now following ${profileData.user.username}`,
-      });
+      // 4. After success, you can optionally re-fetch to confirm, but the optimistic update is usually sufficient.
+      // For maximum data integrity, you could re-fetch the follower count here if needed.
     } catch (error) {
-      console.error("Failed to update follow status:", error);
+      // If the API call fails, revert all optimistic updates
+      toast({
+        title: "Error",
+        description: "Failed to update follow status. Please try again.",
+        variant: "destructive",
+      });
 
-      // Revert optimistic UI update on error
-      setIsFollowing((prev) => !prev);
+      // Revert button state
+      setFollowedUserIds((prev) => {
+        const newSet = new Set(prev);
+        if (wasFollowing) {
+          newSet.add(userId);
+        } else {
+          newSet.delete(userId);
+        }
+        return newSet;
+      });
 
       // Revert follower count
       setProfileData((prev: any) => ({
         ...prev,
         stats: {
           ...prev.stats,
-          followers: prev.stats.followers + (isFollowing ? 1 : -1),
+          followers: prev.stats.followers, // Reverts to original count
         },
       }));
-
-      toast({
-        title: "Error",
-        description: "Failed to update follow status",
-        variant: "destructive",
-      });
     }
   };
 

@@ -1349,6 +1349,12 @@ const Index = () => {
           : []
       );
 
+      // Store in localStorage to share between components
+      localStorage.setItem(
+        "followedChannels",
+        JSON.stringify([...subscribedIds])
+      );
+
       setFollowedUserIds(subscribedIds);
     } catch (error) {
       console.error("Error fetching subscribed channels:", error);
