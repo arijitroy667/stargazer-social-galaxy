@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Star,
+  Sun,
+  Moon,
   Play,
   Heart,
   User,
@@ -17,6 +19,7 @@ import {
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { GlassmorphicCard } from "@/components/GlassmorphicCard";
 import { VideoPlayerModal } from "@/components/ui/VideoPlayerModal";
+import { CommentModal } from "@/components/ui/CommentModal";
 
 const ViewProfile = () => {
   const { userId } = useParams();
@@ -31,6 +34,7 @@ const ViewProfile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("videos");
 
   useEffect(() => {
@@ -148,6 +152,7 @@ const ViewProfile = () => {
   const handleVideoModalClose = () => {
     setIsVideoModalOpen(false);
     setSelectedVideo(null);
+    setIsCommentModalOpen(false);
   };
 
   const handleFollowUser = async () => {
@@ -186,6 +191,10 @@ const ViewProfile = () => {
       console.error("Failed to update follow status:", error);
       alert("Failed to update follow status");
     }
+  };
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
   };
 
   if (isLoading) {
@@ -252,7 +261,7 @@ const ViewProfile = () => {
               : "bg-gradient-to-r from-white/20 via-blue-100/25 to-white/20 shadow-blue-500/5"
           }`}
         >
-          <div className="container mx-auto px-8 py-5">
+          <div className="container mx-auto px-8 py-5 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
@@ -277,10 +286,22 @@ const ViewProfile = () => {
                     isDarkMode ? "text-white" : "text-indigo-900"
                   }`}
                 >
-                  Profile: {user.fullName || user.username}
+                  {user.fullName || user.username}
                 </span>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="rounded-full p-3 backdrop-blur-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-500 hover:scale-105 border-none"
+            >
+              {isDarkMode ? (
+                <Sun className="w-5 h-5 text-yellow-400" />
+              ) : (
+                <Moon className="w-5 h-5 text-black" />
+              )}
+            </Button>
           </div>
         </header>
 
@@ -674,6 +695,30 @@ const ViewProfile = () => {
             open={isVideoModalOpen}
             onClose={handleVideoModalClose}
             video={selectedVideo}
+            isDarkMode={isDarkMode}
+            extraActions={
+              <Button
+                variant="ghost"
+                size="sm"
+                className={
+                  isDarkMode
+                    ? "text-white/70 hover:text-black"
+                    : "text-black/70 hover:text-black"
+                }
+                onClick={() => setIsCommentModalOpen(true)}
+              >
+                <MessageCircle className="w-5 h-5 mr-1" />
+                Comments
+              </Button>
+            }
+          />
+        )}
+        {selectedVideo && (
+          <CommentModal
+            open={isCommentModalOpen}
+            onClose={() => setIsCommentModalOpen(false)}
+            videoId={selectedVideo._id}
+            user={currentUser}
             isDarkMode={isDarkMode}
           />
         )}

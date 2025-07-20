@@ -31,8 +31,6 @@ import {
   Moon,
   Sun,
   Search,
-  Home,
-  Bell,
   MessageCircle,
   User,
   Settings,
@@ -43,10 +41,6 @@ import {
   Plus,
   Edit3,
   X,
-  Shield,
-  Palette,
-  Volume2,
-  Lock,
 } from "lucide-react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ConstellationBackground } from "@/components/ConstellationBackground";
@@ -1454,9 +1448,9 @@ const Index = () => {
                   className="rounded-full p-3 backdrop-blur-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-500 hover:scale-105 border-none"
                 >
                   {isDarkMode ? (
-                    <Sun className="w-5 h-5" />
+                    <Sun className="w-5 h-5 text-yellow-400" />
                   ) : (
-                    <Moon className="w-5 h-5" />
+                    <Moon className="w-5 h-5 text-black" />
                   )}
                 </Button>
                 <Button
@@ -1756,9 +1750,9 @@ const Index = () => {
                   } border-none transition-all duration-300 hover:scale-105`}
                 >
                   {isDarkMode ? (
-                    <Sun className="w-5 h-5" />
+                    <Sun className="w-5 h-5 text-yellow-400" />
                   ) : (
-                    <Moon className="w-5 h-5" />
+                    <Moon className="w-5 h-5 text-black" />
                   )}
                 </Button>
 

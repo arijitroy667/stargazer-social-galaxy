@@ -1,5 +1,11 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { X } from "lucide-react";
 
 export function VideoPlayerModal({
@@ -7,11 +13,13 @@ export function VideoPlayerModal({
   onClose,
   video,
   isDarkMode,
+  extraActions,
 }: {
   open: boolean;
   onClose: () => void;
   video: any;
   isDarkMode: boolean;
+  extraActions?: React.ReactNode;
 }) {
   if (!video) return null;
 
@@ -65,6 +73,9 @@ export function VideoPlayerModal({
               {video.views || 0} views
             </span>
           </div>
+          {extraActions && (
+            <div className="mt-4 flex justify-end">{extraActions}</div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
