@@ -608,18 +608,10 @@ const Index = () => {
   }, [user?._id]);
 
   useEffect(() => {
-    fetchCommunityUsers();
-  }, []);
-
-  const handleLike = (postId: number) => {
-    const newLikedPosts = new Set(likedPosts);
-    if (newLikedPosts.has(postId)) {
-      newLikedPosts.delete(postId);
-    } else {
-      newLikedPosts.add(postId);
+    if (user?._id) {
+      fetchCommunityUsers();
     }
-    setLikedPosts(newLikedPosts);
-  };
+  }, [user?._id]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
