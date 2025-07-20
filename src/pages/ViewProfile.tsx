@@ -20,6 +20,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { GlassmorphicCard } from "@/components/GlassmorphicCard";
 import { VideoPlayerModal } from "@/components/ui/VideoPlayerModal";
 import { CommentModal } from "@/components/ui/CommentModal";
+import { toast } from "@/components/ui/use-toast";
 
 const ViewProfile = () => {
   const { userId } = useParams();
@@ -28,7 +29,11 @@ const ViewProfile = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true); // You can get this from localStorage or context
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Get dark mode preference from localStorage
+    const savedMode = localStorage.getItem("isDarkMode");
+    return savedMode ? JSON.parse(savedMode) : true;
+  });
   const [profileData, setProfileData] = useState<any>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -36,6 +41,13 @@ const ViewProfile = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("videos");
+  const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
+  const [likedTweetIds, setLikedTweetIds] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    localStorage.setItem("isDarkMode", JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -121,10 +133,23 @@ const ViewProfile = () => {
           })
         );
 
+        const videosData = videosResponse.data.data?.videos || [];
+        const tweetsData = tweetsResponse.data.data || [];
+
+        // Initialize like counts for videos and tweets
+        const initialLikeCounts: Record<string, number> = {};
+        videosData.forEach((video: any) => {
+          initialLikeCounts[video._id] = video.likes || 0;
+        });
+        tweetsData.forEach((tweet: any) => {
+          initialLikeCounts[tweet._id] = tweet.likes || 0;
+        });
+        setLikeCounts(initialLikeCounts);
+
         setProfileData({
           user: userResponse.data.data,
-          videos: videosResponse.data.data?.videos || [],
-          tweets: tweetsResponse.data.data || [],
+          videos: videosData,
+          tweets: tweetsData,
           playlists: playlistsWithVideos,
           stats: {
             followers: followersRes.data.data?.length || 0,
@@ -144,6 +169,42 @@ const ViewProfile = () => {
     }
   }, [userId, apiUrl]);
 
+  useEffect(() => {
+    const fetchLikedContent = async () => {
+      if (!currentUser) return;
+
+      try {
+        // Fetch liked videos and tweets
+        const [likedVideosRes, likedTweetsRes] = await Promise.all([
+          axios.get(`${apiUrl}/likes/videos`, { withCredentials: true }),
+          axios.get(`${apiUrl}/likes/tweets`, { withCredentials: true }),
+        ]);
+
+        // Set the liked video IDs
+        setLikedVideoIds(
+          new Set(
+            Array.isArray(likedVideosRes.data.data)
+              ? likedVideosRes.data.data.map((v: any) => v._id)
+              : []
+          )
+        );
+
+        // Set the liked tweet IDs
+        setLikedTweetIds(
+          new Set(
+            Array.isArray(likedTweetsRes.data.data)
+              ? likedTweetsRes.data.data.map((t: any) => t._id)
+              : []
+          )
+        );
+      } catch (error) {
+        console.error("Error fetching liked content:", error);
+      }
+    };
+
+    fetchLikedContent();
+  }, [currentUser, apiUrl]);
+
   const handleVideoClick = (video: any) => {
     setSelectedVideo(video);
     setIsVideoModalOpen(true);
@@ -155,24 +216,115 @@ const ViewProfile = () => {
     setIsCommentModalOpen(false);
   };
 
-  const handleFollowUser = async () => {
+  const handleLikeVideo = async (videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the video card click event
+
     if (!currentUser) {
       // Redirect to login if not logged in
+      toast({
+        title: "Authentication required",
+        description: "Please log in to like videos",
+        variant: "destructive",
+      });
       navigate("/");
       return;
     }
 
+    // Check if the user already liked the video
+    const alreadyLiked = likedVideoIds.has(videoId);
+    const likeChange = alreadyLiked ? -1 : 1;
+
+    // Optimistically update UI
+    setLikedVideoIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(videoId)) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
+
+    // Update like count in UI
+    setLikeCounts((prev) => ({
+      ...prev,
+      [videoId]: (prev[videoId] || 0) + likeChange,
+    }));
+
     try {
-      await axios.post(
+      // Make API call
+      const response = await axios.post(
+        `${apiUrl}/likes/toggle/v/${videoId}`,
+        {},
+        { withCredentials: true }
+      );
+
+      // Update with actual server value if available
+      if (response.data?.data?.likesCount !== undefined) {
+        setLikeCounts((prev) => ({
+          ...prev,
+          [videoId]: response.data.data.likesCount,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to like video:", error);
+
+      // Revert UI update on error
+      setLikedVideoIds((prev) => {
+        const newSet = new Set(prev);
+        if (alreadyLiked) {
+          newSet.add(videoId);
+        } else {
+          newSet.delete(videoId);
+        }
+        return newSet;
+      });
+
+      // Revert like count
+      setLikeCounts((prev) => ({
+        ...prev,
+        [videoId]: (prev[videoId] || 0) - likeChange,
+      }));
+
+      toast({
+        title: "Error",
+        description: "Failed to like video. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFollowUser = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to follow users",
+        variant: "destructive",
+      });
+      navigate("/");
+      return;
+    }
+
+    // Optimistically update UI
+    setIsFollowing((prev) => !prev);
+
+    // Update follower count
+    setProfileData((prev: any) => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        followers: prev.stats.followers + (isFollowing ? -1 : 1),
+      },
+    }));
+
+    try {
+      const response = await axios.post(
         `${apiUrl}/subscriptions/c/${userId}`,
         {},
         { withCredentials: true }
       );
 
-      // Toggle follow status optimistically
-      setIsFollowing(!isFollowing);
-
-      // Refresh followers count
+      // Refresh followers count with actual server value
       const followersRes = await axios.get(
         `${apiUrl}/subscriptions/c/${userId}`,
         {
@@ -187,9 +339,108 @@ const ViewProfile = () => {
           followers: followersRes.data.data?.length || 0,
         },
       }));
+
+      toast({
+        title: isFollowing ? "Unfollowed" : "Following",
+        description: isFollowing
+          ? `You unfollowed ${profileData.user.username}`
+          : `You are now following ${profileData.user.username}`,
+      });
     } catch (error) {
       console.error("Failed to update follow status:", error);
-      alert("Failed to update follow status");
+
+      // Revert optimistic UI update on error
+      setIsFollowing((prev) => !prev);
+
+      // Revert follower count
+      setProfileData((prev: any) => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          followers: prev.stats.followers + (isFollowing ? 1 : -1),
+        },
+      }));
+
+      toast({
+        title: "Error",
+        description: "Failed to update follow status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLikeTweet = async (tweetId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to like tweets",
+        variant: "destructive",
+      });
+      navigate("/");
+      return;
+    }
+
+    // Check if tweet is already liked
+    const alreadyLiked = likedTweetIds.has(tweetId);
+    const likeChange = alreadyLiked ? -1 : 1;
+
+    // Optimistically update UI
+    setLikedTweetIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(tweetId)) {
+        newSet.delete(tweetId);
+      } else {
+        newSet.add(tweetId);
+      }
+      return newSet;
+    });
+
+    // Update like count in UI
+    setLikeCounts((prev) => ({
+      ...prev,
+      [tweetId]: (prev[tweetId] || 0) + likeChange,
+    }));
+
+    try {
+      // Make API call
+      const response = await axios.post(
+        `${apiUrl}/likes/toggle/t/${tweetId}`,
+        {},
+        { withCredentials: true }
+      );
+
+      // Update with actual server value if available
+      if (response.data?.data?.likesCount !== undefined) {
+        setLikeCounts((prev) => ({
+          ...prev,
+          [tweetId]: response.data.data.likesCount,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to like tweet:", error);
+
+      // Revert UI update on error
+      setLikedTweetIds((prev) => {
+        const newSet = new Set(prev);
+        if (alreadyLiked) {
+          newSet.add(tweetId);
+        } else {
+          newSet.delete(tweetId);
+        }
+        return newSet;
+      });
+
+      // Revert like count
+      setLikeCounts((prev) => ({
+        ...prev,
+        [tweetId]: (prev[tweetId] || 0) - likeChange,
+      }));
+
+      toast({
+        title: "Error",
+        description: "Failed to like tweet. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -294,12 +545,16 @@ const ViewProfile = () => {
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="rounded-full p-3 backdrop-blur-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-500 hover:scale-105 border-none"
+              className={`rounded-full p-3 backdrop-blur-sm border-none transition-all duration-500 hover:scale-105 ${
+                isDarkMode
+                  ? "bg-white/10 text-white hover:bg-white/20"
+                  : "bg-black/10 text-black hover:bg-black/20"
+              }`}
             >
               {isDarkMode ? (
                 <Sun className="w-5 h-5 text-yellow-400" />
               ) : (
-                <Moon className="w-5 h-5 text-black" />
+                <Moon className="w-5 h-5 text-indigo-600" />
               )}
             </Button>
           </div>
@@ -487,31 +742,53 @@ const ViewProfile = () => {
                         </h4>
                         {/* Description */}
                         <p
-                          className={`text-sm mb-2 ${
+                          className={`text-sm mb-2 line-clamp-2 ${
                             isDarkMode ? "text-white/60" : "text-black/60"
                           }`}
                         >
                           {video.description}
                         </p>
                         {/* Views and Likes count */}
-                        <div className="flex items-center space-x-4 text-sm mt-4">
-                          <span
-                            className={
-                              isDarkMode ? "text-white/50" : "text-black/50"
-                            }
-                          >
-                            {video.views || 0} views
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Heart className="w-4 h-4 text-pink-500" />
-                            <span
-                              className={
-                                isDarkMode ? "text-white/50" : "text-black/50"
-                              }
-                            >
-                              {video.likes || 0}
-                            </span>
-                          </span>
+                        <div className="flex items-center justify-between text-sm mt-4">
+                          <div className="flex items-center">
+                            {currentUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleLikeVideo(video._id, e)}
+                                className={
+                                  likedVideoIds.has(video._id)
+                                    ? isDarkMode
+                                      ? "text-pink-400 hover:text-pink-600"
+                                      : "text-pink-600 hover:text-pink-800"
+                                    : isDarkMode
+                                    ? "text-white/60 hover:text-pink-400"
+                                    : "text-black/60 hover:text-pink-600"
+                                }
+                              >
+                                <Heart
+                                  className={`w-4 h-4 mr-1 ${
+                                    likedVideoIds.has(video._id)
+                                      ? "fill-current"
+                                      : ""
+                                  }`}
+                                  fill={
+                                    likedVideoIds.has(video._id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                  stroke="currentColor"
+                                />
+                                <span>{likeCounts[video._id] || 0}</span>
+                              </Button>
+                            )}
+                            {!currentUser && (
+                              <div className="flex items-center space-x-1 text-gray-500">
+                                <Heart className="w-4 h-4" />
+                                <span>{likeCounts[video._id] || 0}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </GlassmorphicCard>
                     </div>
@@ -573,7 +850,7 @@ const ViewProfile = () => {
                       {Array.isArray(playlist.videos) &&
                         playlist.videos.length > 0 && (
                           <div className="space-y-2">
-                            <div className="max-h-48 overflow-y-auto space-y-2">
+                            <div className="max-h-48 overflow-y-auto scrollbar-transparent space-y-2">
                               {playlist.videos.map((video: any) => (
                                 <div
                                   key={video._id}
@@ -586,9 +863,9 @@ const ViewProfile = () => {
                                   <div className="flex items-center space-x-2">
                                     <Play className="w-4 h-4" />
                                     <span
-                                      className={
+                                      className={`truncate max-w-[180px] ${
                                         isDarkMode ? "text-white" : "text-black"
-                                      }
+                                      }`}
                                     >
                                       {video.title}
                                     </span>
@@ -662,22 +939,45 @@ const ViewProfile = () => {
                             {tweet.content}
                           </p>
                           <div className="flex items-center space-x-6">
-                            <div
-                              className={`flex items-center space-x-1 ${
-                                isDarkMode ? "text-white/60" : "text-black/60"
-                              }`}
-                            >
-                              <Heart className="w-4 h-4" />
-                              <span>{tweet.likes || 0}</span>
-                            </div>
-                            <div
-                              className={`flex items-center space-x-1 ${
-                                isDarkMode ? "text-white/60" : "text-black/60"
-                              }`}
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                              <span>{tweet.comments || 0}</span>
-                            </div>
+                            {currentUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleLikeTweet(tweet._id)}
+                                className={
+                                  likedTweetIds.has(tweet._id)
+                                    ? isDarkMode
+                                      ? "text-pink-400 hover:text-pink-600"
+                                      : "text-pink-600 hover:text-pink-800"
+                                    : isDarkMode
+                                    ? "text-white/60 hover:text-pink-400"
+                                    : "text-black/60 hover:text-pink-600"
+                                }
+                              >
+                                <Heart
+                                  className={`w-4 h-4 mr-1 ${
+                                    likedTweetIds.has(tweet._id)
+                                      ? "fill-current"
+                                      : ""
+                                  }`}
+                                  fill={
+                                    likedTweetIds.has(tweet._id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                  stroke="currentColor"
+                                />
+                              </Button>
+                            )}
+                            {!currentUser && (
+                              <div
+                                className={`flex items-center space-x-1 ${
+                                  isDarkMode ? "text-white/60" : "text-black/60"
+                                }`}
+                              >
+                                <Heart className="w-4 h-4" />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -697,19 +997,51 @@ const ViewProfile = () => {
             video={selectedVideo}
             isDarkMode={isDarkMode}
             extraActions={
-              <Button
-                variant="ghost"
-                size="sm"
-                className={
-                  isDarkMode
-                    ? "text-white/70 hover:text-black"
-                    : "text-black/70 hover:text-black"
-                }
-                onClick={() => setIsCommentModalOpen(true)}
-              >
-                <MessageCircle className="w-5 h-5 mr-1" />
-                Comments
-              </Button>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLikeVideo(selectedVideo._id, e);
+                  }}
+                  className={
+                    likedVideoIds.has(selectedVideo._id)
+                      ? isDarkMode
+                        ? "text-pink-400 hover:text-pink-600"
+                        : "text-pink-600 hover:text-pink-800"
+                      : isDarkMode
+                      ? "text-white/60 hover:text-pink-400"
+                      : "text-black/60 hover:text-pink-600"
+                  }
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-1 ${
+                      likedVideoIds.has(selectedVideo._id) ? "fill-current" : ""
+                    }`}
+                    fill={
+                      likedVideoIds.has(selectedVideo._id)
+                        ? "currentColor"
+                        : "none"
+                    }
+                    stroke="currentColor"
+                  />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={
+                    isDarkMode
+                      ? "text-white/70 hover:text-white"
+                      : "text-black/70 hover:text-black"
+                  }
+                  onClick={() => setIsCommentModalOpen(true)}
+                >
+                  <MessageCircle className="w-5 h-5 mr-1" />
+                  Comments
+                </Button>
+              </div>
             }
           />
         )}

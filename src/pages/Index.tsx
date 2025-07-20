@@ -245,9 +245,6 @@ function VideoPlayerModal({
             <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
               Uploaded by: {video.uploader?.username || "Unknown"}
             </span>
-            <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
-              {video.views || 0} views
-            </span>
           </div>
         </div>
       </DialogContent>
@@ -586,6 +583,28 @@ const Index = () => {
     }
     fetchAllTweets();
     fetchAndSetTweets();
+  }, [user?._id]);
+
+  useEffect(() => {
+    const fetchLikedTweets = async () => {
+      if (!user?._id) return;
+      try {
+        const res = await axios.get(`${apiUrl}/likes/tweets`, {
+          withCredentials: true,
+        });
+
+        setLikedTweetIds(
+          new Set(
+            Array.isArray(res.data.data)
+              ? res.data.data.map((t: any) => t._id)
+              : []
+          )
+        );
+      } catch (error) {
+        setLikedTweetIds(new Set());
+      }
+    };
+    fetchLikedTweets();
   }, [user?._id]);
 
   useEffect(() => {
@@ -1223,13 +1242,7 @@ const Index = () => {
 
   const handleLikeTweet = async (tweetId: string) => {
     try {
-      await axios.post(
-        `${apiUrl}/likes/toggle/t/${tweetId}`,
-        {},
-        { withCredentials: true }
-      );
-
-      // Update like status immediately for better UX
+      // Optimistically update UI first
       setLikedTweetIds((prev) => {
         const newSet = new Set(prev);
         if (newSet.has(tweetId)) {
@@ -1240,14 +1253,31 @@ const Index = () => {
         return newSet;
       });
 
-      // Refresh all data
-      await Promise.all([
+      // Then make the API call
+      await axios.post(
+        `${apiUrl}/likes/toggle/t/${tweetId}`,
+        {},
+        { withCredentials: true }
+      );
+
+      // Optionally, refresh data in the background
+      Promise.all([
         fetchAndSetTweets(),
         fetchDashboardData(user._id),
-        fetchAllTweets(), // Also refresh all tweets
-      ]);
+        fetchAllTweets(),
+      ]).catch(console.error);
     } catch (error) {
-      alert("Failed to like tweet.");
+      // Revert UI state on error
+      setLikedTweetIds((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(tweetId)) {
+          newSet.delete(tweetId);
+        } else {
+          newSet.add(tweetId);
+        }
+        return newSet;
+      });
+      console.error("Failed to like tweet:", error);
     }
   };
 

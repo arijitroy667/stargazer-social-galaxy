@@ -69,9 +69,6 @@ export function VideoPlayerModal({
             <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
               Uploaded by: {video.owner?.username || "Unknown"}
             </span>
-            <span className={isDarkMode ? "text-white/60" : "text-black/60"}>
-              {video.views || 0} views
-            </span>
           </div>
           {extraActions && (
             <div className="mt-4 flex justify-end">{extraActions}</div>
