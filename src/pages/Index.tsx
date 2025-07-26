@@ -633,6 +633,17 @@ const Index = () => {
       const coverFile = (form.querySelector("#coverImage") as HTMLInputElement)
         ?.files?.[0];
 
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+      if (avatarFile && avatarFile.size > MAX_FILE_SIZE) {
+        alert("Avatar file is too large. Max size is 5MB.");
+        return;
+      }
+      if (coverFile && coverFile.size > MAX_FILE_SIZE) {
+        alert("Cover image file is too large. Max size is 5MB.");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("fullName", fullName);
       formData.append("email", email);
